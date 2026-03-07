@@ -83,12 +83,18 @@ Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to 
 | **Method & URL filtering** | Filter by HTTP method (GET, POST, PUT, DELETE) and URL pattern |
 | **Request details** | View request/response headers, bodies, status codes, duration, and size |
 | **Copy to clipboard** | One-click copy for request and response bodies (auto-formatted JSON) |
+| **Copy as cURL** | Export any captured request as a ready-to-run cURL command |
 | **Cursor-based polling** | Efficient incremental updates — only fetches new events |
 | **Ring buffer storage** | Keeps the last 1000 events in memory with zero disk I/O |
 | **Development only** | Refuses to start if `NODE_ENV=production` — zero production impact |
 | **Zero config** | No middleware, no config files — just replace `next` with `n-ext` |
 | **Local only** | Listens on `127.0.0.1:3894` — never exposed to the network |
 | **Dual source tracking** | Labels each request as `fetch` or `http` so you know the origin |
+
+## 🔮 Future Scope
+
+- **MCP server** — Expose captured requests via Model Context Protocol so AI tools (Cursor, Claude Code) can read and reason about your server's network traffic
+- **CLI viewer** — Terminal-based UI for inspecting requests without opening Chrome (`n-ext --tui`)
 
 ## 💡 Why
 
@@ -270,6 +276,24 @@ Contributions are welcome! Here's how to get started:
 - Describe *what* changed and *why* in the PR description
 - Link any related issues
 - Make sure the build passes (`pnpm build`)
+
+### Building & publishing packages
+
+**n-ext (npm package):**
+```bash
+cd packages/n-ext
+pnpm build                # compiles TypeScript to dist/
+npm publish --access public  # publish to npm as @chaiops/n-ext
+```
+
+**Chrome extension:**
+```bash
+cd packages/extension
+pnpm build                # builds to dist/ (includes README)
+```
+Then zip the `dist/` folder and upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+
+> **Note:** Bump the version in the relevant `package.json` (and `manifest.json` for the extension) before publishing.
 
 ## 👥 Contributors
 

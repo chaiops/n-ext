@@ -157,7 +157,7 @@ function renderDetail(): void {
     case "headers":
       content.innerHTML = `
         <div class="detail-section">
-          <h3>General</h3>
+          <div class="section-header"><h3>General</h3><button class="copy-btn" id="copyCurlBtn" title="Copy as cURL">⚙️ Copy as cURL</button></div>
           <div class="header-row"><span class="header-name">URL</span><span class="header-value">${escapeHtml(req.url || "")}</span></div>
           <div class="header-row"><span class="header-name">Method</span><span class="header-value">${req.method || "-"}</span></div>
           <div class="header-row"><span class="header-name">Status</span><span class="header-value">${req.error ? "Error: " + escapeHtml(req.error) : (req.status || "-") + " " + (req.statusText || "")}</span></div>
@@ -172,6 +172,10 @@ function renderDetail(): void {
           <h3>Response Headers</h3>
           ${renderHeaders(req.responseHeaders)}
         </div>`;
+      document.getElementById("copyCurlBtn")!.addEventListener("click", () => {
+        const btn = document.getElementById("copyCurlBtn")!;
+        copyTextToClipboard(toCurl(req), btn, "⚙️ Copy as cURL");
+      });
       break;
 
     case "request":
@@ -206,6 +210,38 @@ function renderDetail(): void {
       break;
     }
   }
+}
+
+function toCurl(req: NExtEvent): string {
+  const skipHeaders = new Set(["host", "content-length"]);
+  let cmd = `curl -X ${req.method} '${req.url}'`;
+  if (req.requestHeaders) {
+    for (const [k, v] of Object.entries(req.requestHeaders)) {
+      if (skipHeaders.has(k.toLowerCase())) continue;
+      cmd += ` \\\n  -H '${k}: ${v.replace(/'/g, "'\\''")}'`;
+    }
+  }
+  if (req.requestBody) {
+    cmd += ` \\\n  -d '${req.requestBody.replace(/'/g, "'\\''")}'`;
+  }
+  return cmd;
+}
+
+function copyTextToClipboard(text: string, btn: HTMLElement, label: string): void {
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    btn.textContent = "✅ Copied!";
+  } catch {
+    btn.textContent = "❌ Failed";
+  }
+  setTimeout(() => { btn.textContent = label; }, 1500);
 }
 
 function renderHeaders(headers: Record<string, string>): string {
