@@ -7,7 +7,11 @@
   "author": "Anuj",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "cd apps/demo && pnpm dev"
+    "build:all": "pnpm -r build",
+    "build:n-ext": "cd packages/n-ext && pnpm build",
+    "build:extension": "cd packages/extension && pnpm build",
+    "dev": "cd apps/demo && pnpm dev",
+    "publish:n-ext": "cd packages/n-ext && npm publish --access public"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"]

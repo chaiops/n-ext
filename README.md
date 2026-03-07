@@ -291,7 +291,12 @@ npm publish --access public  # publish to npm as @chaiops/n-ext
 cd packages/extension
 pnpm build                # builds to dist/ (includes README)
 ```
-Then zip the `dist/` folder and upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+Then load the `dist/` folder in `chrome://extensions` with **Developer mode** enabled → **Load unpacked**.
+
+**Build all packages:**
+```bash
+pnpm build:all
+```
 
 > **Note:** Bump the version in the relevant `package.json` (and `manifest.json` for the extension) before publishing.
 
