@@ -1,21 +1,35 @@
 {
   "name": "@chaiops/n-ext",
-  "version": "0.1.0",
+  "version": "0.0.2-alpha",
   "description": "Next.js Server DevTools — capture and inspect server-side network requests",
   "license": "MIT",
   "author": "Anuj",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chaiops/n-ext"
+    "url": "git+https://github.com/chaiops/n-ext.git",
+    "directory": "packages/n-ext"
   },
-  "keywords": ["nextjs", "devtools", "server", "fetch", "http", "interceptor", "debug"],
+  "keywords": [
+    "nextjs",
+    "devtools",
+    "server",
+    "fetch",
+    "http",
+    "interceptor",
+    "debug"
+  ],
   "bin": {
     "n-ext": "./dist/cli.js"
   },
   "exports": {
     "./runtime/register": "./dist/runtime/register.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "homepage": "https://github.com/chaiops/n-ext#readme",
+  "bugs": "https://github.com/chaiops/n-ext/issues",
   "publishConfig": {
     "access": "public"
   },
