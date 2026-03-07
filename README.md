@@ -276,6 +276,7 @@ Contributions are welcome! Here's how to get started:
 <!-- ALL-CONTRIBUTORS-LIST:START -->
 <a href="https://github.com/MananDesai54"><img src="https://github.com/MananDesai54.png" width="60px" alt="MananDesai54" style="border-radius:50%" /></a>
 <a href="https://github.com/anuj-kosambi"><img src="https://github.com/anuj-kosambi.png" width="60px" alt="anuj-kosambi" style="border-radius:50%" /></a>
+<a href="https://github.com/centerseat"><img src="https://github.com/centerseat.png" width="60px" alt="centerseat" style="border-radius:50%" /></a>
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 Built with ❤️ in India 🇮🇳
