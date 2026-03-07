@@ -80,6 +80,11 @@
       border-color: #555;
       background: #3c3c3c;
     }
+    .method-filters button[data-method="ACTION"].active {
+      color: #c586c0;
+      border-color: #c586c0;
+      background: #2a1a3a;
+    }
 
     .content {
       display: flex;
@@ -147,6 +152,21 @@
       color: #888;
       margin-left: 4px;
     }
+    .source-badge.action {
+      background: #2a1a3a;
+      color: #c586c0;
+    }
+
+    .resize-handle {
+      width: 4px;
+      cursor: col-resize;
+      background: #3c3c3c;
+      flex-shrink: 0;
+      display: none;
+      transition: background 0.15s;
+    }
+    .resize-handle:hover, .resize-handle.active { background: #007acc; }
+    .resize-handle.visible { display: block; }
 
     .detail-panel {
       width: 450px;
@@ -358,6 +378,7 @@
       <button data-method="POST">POST</button>
       <button data-method="PUT">PUT</button>
       <button data-method="DELETE">DEL</button>
+      <button data-method="ACTION">ACTION</button>
     </div>
     <span id="statusIndicator" class="status disconnected">connecting...</span>
   </div>
@@ -380,12 +401,14 @@
       <div class="empty-state" id="emptyState">Waiting for server-side requests...</div>
     </div>
 
+    <div class="resize-handle" id="resizeHandle"></div>
     <div class="detail-panel" id="detailPanel">
       <div class="detail-tabs" id="detailTabs">
         <button class="active" data-tab="headers">Headers</button>
         <button data-tab="request">Request</button>
         <button data-tab="response">Response</button>
         <button data-tab="auth" id="authTab" style="display:none">Auth</button>
+        <button data-tab="action" id="actionTab" style="display:none">Action</button>
         <button data-tab="timing">Timing</button>
         <button class="close-btn" id="detailCloseBtn" title="Close">✕</button>
       </div>

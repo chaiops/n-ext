@@ -18,7 +18,8 @@ interface NExtEvent {
   duration: number;
   timestamp: number;
   error: string | null;
-  source: "fetch" | "http";
+  source: "fetch" | "http" | "action";
+  actionId?: string;
 }
 
 let allRequests: NExtEvent[] = [];
@@ -30,6 +31,101 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const SEE_URL = "http://127.0.0.1:3894/see";
 const CLEAR_URL = "http://127.0.0.1:3894/clear";
+function getActionName(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname.replace(
+      /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "/[id]"
+    );
+  } catch {
+    return url;
+  }
+}
+
+interface RscChunk {
+  id: string;
+  type: string | null;
+  data: unknown;
+}
+
+function parseRscPayload(raw: string): RscChunk[] {
+  const chunks: RscChunk[] = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim() || line.startsWith(":")) continue;
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const id = line.slice(0, colonIdx);
+    const rest = line.slice(colonIdx + 1);
+    let type: string | null = null;
+    let json = rest;
+    if (rest.length > 0 && rest[0] >= "A" && rest[0] <= "Z") {
+      type = rest[0];
+      json = rest.slice(1);
+    }
+    let data: unknown = json;
+    try { data = JSON.parse(json); } catch { /* keep as string */ }
+    chunks.push({ id, type, data });
+  }
+  return chunks;
+}
+
+function resolveRscData(chunks: RscChunk[]): unknown | null {
+  // Find the main data chunk (non-debug, non-header, with object data)
+  for (const chunk of chunks) {
+    if (chunk.type === "D") continue; // skip debug/timing
+    if (typeof chunk.data === "object" && chunk.data !== null) {
+      const obj = chunk.data as Record<string, unknown>;
+      // Prefer chunks that have "data" or look like actual payloads
+      if ("data" in obj || "error" in obj) return obj;
+    }
+  }
+  // Fallback: return last non-debug chunk with object data
+  for (let i = chunks.length - 1; i >= 0; i--) {
+    if (chunks[i].type !== "D" && typeof chunks[i].data === "object") {
+      return chunks[i].data;
+    }
+  }
+  return null;
+}
+
+// Capture Next.js Server Actions from browser network
+if (typeof chrome !== "undefined" && chrome.devtools?.network) {
+  chrome.devtools.network.onRequestFinished.addListener((entry) => {
+    const nextActionHeader = entry.request.headers.find(
+      (h) => h.name.toLowerCase() === "next-action"
+    );
+    if (!nextActionHeader) return;
+
+    entry.getContent((body) => {
+      const reqHeaders: Record<string, string> = {};
+      entry.request.headers.forEach((h) => { reqHeaders[h.name] = h.value; });
+      const resHeaders: Record<string, string> = {};
+      entry.response.headers.forEach((h) => { resHeaders[h.name] = h.value; });
+
+      const actionEvent: NExtEvent = {
+        id: crypto.randomUUID(),
+        url: entry.request.url,
+        method: entry.request.method,
+        requestHeaders: reqHeaders,
+        requestBody: entry.request.postData?.text || null,
+        status: entry.response.status,
+        statusText: entry.response.statusText,
+        responseHeaders: resHeaders,
+        responseBody: body || null,
+        responseSize: body?.length ?? null,
+        duration: entry.time || 0,
+        timestamp: Date.now(),
+        error: null,
+        source: "action",
+        actionId: nextActionHeader.value,
+      };
+
+      allRequests.unshift(actionEvent);
+      if (allRequests.length > 200) allRequests.pop();
+      applyFilters();
+    });
+  });
+}
 
 function setStatus(_text: string, connected: boolean): void {
   const el = document.getElementById("statusIndicator")!;
@@ -40,6 +136,7 @@ function setStatus(_text: string, connected: boolean): void {
 function closeDetail(): void {
   selectedRequest = null;
   document.getElementById("detailPanel")!.classList.remove("open");
+  document.getElementById("resizeHandle")!.classList.remove("visible");
   document.querySelectorAll("tr.row").forEach((row) => row.classList.remove("selected"));
 }
 
@@ -82,7 +179,9 @@ function applyFilters(): void {
     filtered = filtered.filter((r) => r.url && r.url.toLowerCase().includes(filter));
   }
 
-  if (activeMethod !== "all") {
+  if (activeMethod === "ACTION") {
+    filtered = filtered.filter((r) => r.source === "action");
+  } else if (activeMethod !== "all") {
     filtered = filtered.filter((r) => r.method === activeMethod);
   }
 
@@ -110,7 +209,7 @@ function renderRequests(requests: NExtEvent[]): void {
       const duration = req.duration != null ? Math.round(req.duration) + "ms" : "-";
       const time = req.timestamp ? formatTime(req.timestamp) : "-";
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
-      const source = req.source ? `<span class="source-badge">${req.source}</span>` : "";
+      const source = req.source ? `<span class="source-badge${req.source === "action" ? " action" : ""}">${req.source}</span>` : "";
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
         <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}</td>
@@ -129,8 +228,16 @@ function selectRequest(id: string): void {
 
   if (selectedRequest) {
     panel.classList.add("open");
+    document.getElementById("resizeHandle")!.classList.add("visible");
     const authTab = document.getElementById("authTab") as HTMLElement;
     if (authTab) authTab.style.display = hasBearerToken(selectedRequest) ? "" : "none";
+    const actionTab = document.getElementById("actionTab") as HTMLElement;
+    if (actionTab) actionTab.style.display = selectedRequest.source === "action" ? "" : "none";
+    if (activeTab === "action" && selectedRequest.source !== "action") {
+      activeTab = "headers";
+      document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
+      document.querySelector('.detail-tabs button[data-tab="headers"]')?.classList.add("active");
+    }
     if (activeTab === "auth" && !hasBearerToken(selectedRequest)) {
       activeTab = "headers";
       document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
@@ -139,6 +246,7 @@ function selectRequest(id: string): void {
     renderDetail();
   } else {
     panel.classList.remove("open");
+    document.getElementById("resizeHandle")!.classList.remove("visible");
   }
 
   document.querySelectorAll("tr.row").forEach((row) => {
@@ -217,6 +325,41 @@ function renderDetail(): void {
           <div class="header-row"><span class="header-name">Type</span><span class="header-value">Bearer Token</span></div>
           <div class="header-row"><span class="header-name">Token</span><span class="header-value" style="word-break:break-all">${escapeHtml(token || "")}</span></div>
         </div>`;
+      break;
+    }
+
+    case "action": {
+      const chunks = req.responseBody ? parseRscPayload(req.responseBody) : [];
+      const resolved = resolveRscData(chunks);
+      const debugChunk = chunks.find((c) => c.type === "D");
+      const serverTime = debugChunk && typeof debugChunk.data === "object" && debugChunk.data !== null
+        ? (debugChunk.data as Record<string, unknown>).time : null;
+
+      content.innerHTML = `
+        <div class="detail-section">
+          <h3>Server Action</h3>
+          <div class="header-row"><span class="header-name">Function</span><span class="header-value">${escapeHtml(getActionName(req.url))}</span></div>
+          <div class="header-row"><span class="header-name">Action ID</span><span class="header-value" style="word-break:break-all;color:#888;font-size:10px">${escapeHtml(req.actionId || "-")}</span></div>
+          <div class="header-row"><span class="header-name">Status</span><span class="header-value">${req.status || "-"}</span></div>
+          <div class="header-row"><span class="header-name">Duration</span><span class="header-value">${req.duration != null ? req.duration.toFixed(1) + "ms" : "-"}</span></div>
+          ${serverTime != null ? `<div class="header-row"><span class="header-name">Server Time</span><span class="header-value">${Number(serverTime).toFixed(2)}ms</span></div>` : ""}
+        </div>
+        <div class="detail-section">
+          <h3>Form Data</h3>
+          <div class="body-preview" id="actionFormData"></div>
+        </div>
+        <div class="detail-section">
+          <h3>Return Value (Parsed)</h3>
+          <div class="body-preview" id="actionReturnValue"></div>
+        </div>
+`;
+      renderBodyInto("actionFormData", req.requestBody);
+      const rvContainer = document.getElementById("actionReturnValue")!;
+      if (resolved && typeof resolved === "object") {
+        rvContainer.appendChild(renderjson(resolved));
+      } else {
+        rvContainer.textContent = "(no data)";
+      }
       break;
     }
 
@@ -348,6 +491,7 @@ async function clearRequests(): Promise<void> {
   allRequests = [];
   selectedRequest = null;
   document.getElementById("detailPanel")!.classList.remove("open");
+  document.getElementById("resizeHandle")!.classList.remove("visible");
   applyFilters();
 }
 
@@ -412,5 +556,35 @@ document.getElementById("detailTabs")!.addEventListener("click", (e) => {
 });
 
 document.getElementById("detailCloseBtn")!.addEventListener("click", closeDetail);
+
+// Resize handle drag logic
+(() => {
+  const handle = document.getElementById("resizeHandle")!;
+  const panel = document.getElementById("detailPanel")!;
+  let dragging = false;
+
+  handle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    dragging = true;
+    handle.classList.add("active");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const containerRight = document.querySelector(".content")!.getBoundingClientRect().right;
+    const newWidth = Math.max(200, Math.min(containerRight - e.clientX, window.innerWidth - 200));
+    panel.style.width = newWidth + "px";
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("active");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  });
+})();
 
 startPolling();

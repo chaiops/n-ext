@@ -85,6 +85,8 @@ Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to 
 | **Copy to clipboard** | One-click copy for request and response bodies (auto-formatted JSON) |
 | **Copy as cURL** | Export any captured request as a ready-to-run cURL command |
 | **JWT token parser** | Automatically decodes Bearer tokens and displays the JWT payload in a dedicated Auth tab |
+| **Server Actions logger** | Captures Next.js server action calls with action ID, form data, and return values in a dedicated Action tab |
+| **Resizable detail panel** | Drag to resize the request detail panel to your preferred width |
 | **Cursor-based polling** | Efficient incremental updates — only fetches new events |
 | **Ring buffer storage** | Keeps the last 1000 events in memory with zero disk I/O |
 | **Development only** | Refuses to start if `NODE_ENV=production` — zero production impact |
