@@ -20,6 +20,8 @@ interface NExtEvent {
   error: string | null;
   source: "fetch" | "http" | "action";
   actionId?: string;
+  middleware?: boolean;
+  middlewareHeaders?: Record<string, string>;
 }
 
 const MAX_PANEL_EVENTS = 200;
@@ -91,21 +93,40 @@ function resolveRscData(chunks: RscChunk[]): unknown | null {
   return null;
 }
 
-// Capture Next.js Server Actions from browser network
+const MIDDLEWARE_HEADERS = ["x-middleware-rewrite", "x-middleware-next", "x-middleware-set-cookie", "x-middleware-redirect"];
+
+function harHeadersToRecord(headers: { name: string; value: string }[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((h) => { result[h.name] = h.value; });
+  return result;
+}
+
+function detectMiddleware(resHeaders: Record<string, string>): { hit: boolean; headers: Record<string, string> } {
+  const mwHeaders: Record<string, string> = {};
+  for (const [k, v] of Object.entries(resHeaders)) {
+    if (MIDDLEWARE_HEADERS.includes(k.toLowerCase())) {
+      mwHeaders[k] = v;
+    }
+  }
+  return { hit: Object.keys(mwHeaders).length > 0, headers: mwHeaders };
+}
+
+// Capture Next.js Server Actions + middleware detection from browser network
 if (typeof chrome !== "undefined" && chrome.devtools?.network) {
   chrome.devtools.network.onRequestFinished.addListener((entry) => {
     const nextActionHeader = entry.request.headers.find(
       (h) => h.name.toLowerCase() === "next-action"
     );
-    if (!nextActionHeader) return;
+    const resHeaders = harHeadersToRecord(entry.response.headers);
+    const mw = detectMiddleware(resHeaders);
+
+    // Only capture server actions and middleware requests
+    if (!nextActionHeader && !mw.hit) return;
 
     entry.getContent((body) => {
-      const reqHeaders: Record<string, string> = {};
-      entry.request.headers.forEach((h) => { reqHeaders[h.name] = h.value; });
-      const resHeaders: Record<string, string> = {};
-      entry.response.headers.forEach((h) => { resHeaders[h.name] = h.value; });
+      const reqHeaders = harHeadersToRecord(entry.request.headers);
 
-      const actionEvent: NExtEvent = {
+      const event: NExtEvent = {
         id: crypto.randomUUID(),
         url: entry.request.url,
         method: entry.request.method,
@@ -119,11 +140,13 @@ if (typeof chrome !== "undefined" && chrome.devtools?.network) {
         duration: entry.time || 0,
         timestamp: Date.now(),
         error: null,
-        source: "action",
-        actionId: nextActionHeader.value,
+        source: nextActionHeader ? "action" : "fetch",
+        actionId: nextActionHeader?.value,
+        middleware: mw.hit,
+        middlewareHeaders: mw.hit ? mw.headers : undefined,
       };
 
-      addRequest(actionEvent);
+      addRequest(event);
       applyFilters();
     });
   });
@@ -161,6 +184,14 @@ async function poll(): Promise<void> {
 
     if (data.events.length > 0) {
       for (const event of data.events) {
+        // Detect middleware from response headers on server-side events
+        if (event.responseHeaders) {
+          const mw = detectMiddleware(event.responseHeaders);
+          if (mw.hit) {
+            event.middleware = true;
+            event.middlewareHeaders = mw.headers;
+          }
+        }
         addRequest(event);
       }
       applyFilters();
@@ -217,9 +248,10 @@ function renderRequests(requests: NExtEvent[]): void {
       const time = req.timestamp ? formatTime(req.timestamp) : "-";
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
       const source = req.source ? `<span class="source-badge${req.source === "action" ? " action" : ""}">${req.source}</span>` : "";
+      const mwBadge = req.middleware ? `<span class="source-badge middleware">mw</span>` : "";
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
-        <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}</td>
+        <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}${mwBadge}</td>
         <td class="${statusClass}">${req.error ? "ERR" : req.status || "-"}</td>
         <td>${duration}</td>
         <td>${size}</td>
@@ -275,7 +307,12 @@ function renderDetail(): void {
           <div class="header-row"><span class="header-name">Status</span><span class="header-value">${req.error ? "Error: " + escapeHtml(req.error) : (req.status || "-") + " " + (req.statusText || "")}</span></div>
           <div class="header-row"><span class="header-name">Duration</span><span class="header-value">${req.duration != null ? req.duration.toFixed(1) + "ms" : "-"}</span></div>
           <div class="header-row"><span class="header-name">Source</span><span class="header-value">${req.source || "-"}</span></div>
+          ${req.middleware ? `<div class="header-row"><span class="header-name">Middleware</span><span class="header-value"><span class="source-badge middleware">yes</span></span></div>` : ""}
         </div>
+        ${req.middleware && req.middlewareHeaders ? `<div class="detail-section">
+          <h3>Middleware Headers</h3>
+          ${renderHeaders(req.middlewareHeaders)}
+        </div>` : ""}
         <div class="detail-section">
           <h3>Request Headers</h3>
           ${renderHeaders(req.requestHeaders)}

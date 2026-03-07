@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  "🍵 N•ext",
+  "🍵 NExt",
   null,
   "panel.html"
 );

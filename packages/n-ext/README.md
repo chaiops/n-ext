@@ -56,7 +56,7 @@ All arguments are forwarded to `next dev`:
 2. Unzip the downloaded file
 3. Open `chrome://extensions` and enable **Developer mode**
 4. Click **Load unpacked** and select the unzipped folder
-5. Open DevTools on your app — you'll see a **🍵 n-ext** tab
+5. Open DevTools on your app — you'll see a **🍵 NExt** tab
 
 ### 4. Run your app
 
@@ -71,14 +71,14 @@ You should see:
 [n-ext] Interceptors installed (server mode)
 ```
 
-Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to see captured server-side requests.
+Open your app in Chrome, open DevTools, and switch to the **🍵 NExt** tab to see captured server-side requests.
 
 ## ✨ Features
 
 | Feature | Details |
 |---|---|
 | **Automatic interception** | Captures `fetch`, `http.request`, and `https.request` — no code changes needed |
-| **Chrome DevTools panel** | Dedicated **🍵 n-ext** tab with request list, headers, body preview, and timing |
+| **Chrome DevTools panel** | Dedicated **🍵 NExt** tab with request list, headers, body preview, and timing |
 | **JSON tree preview** | Collapsible JSON viewer for request and response bodies |
 | **Method & URL filtering** | Filter by HTTP method (GET, POST, PUT, DELETE) and URL pattern |
 | **Request details** | View request/response headers, bodies, status codes, duration, and size |
@@ -86,7 +86,7 @@ Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to 
 | **Copy as cURL** | Export any captured request as a ready-to-run cURL command |
 | **JWT token parser** | Automatically decodes Bearer tokens and displays the JWT payload in a dedicated Auth tab |
 | **Server Actions logger** | Captures Next.js server action calls with action ID, form data, and return values in a dedicated Action tab |
-| **Resizable detail panel** | Drag to resize the request detail panel to your preferred width |
+| **Middleware detection** | Labels requests that passed through Next.js middleware with a `mw` badge and shows middleware headers |
 | **Cursor-based polling** | Efficient incremental updates — only fetches new events |
 | **Ring buffer storage** | Keeps the last 1000 events in memory with zero disk I/O |
 | **Development only** | Refuses to start if `NODE_ENV=production` — zero production impact |
