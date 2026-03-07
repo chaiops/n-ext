@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>NNI - Network Inspector</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Menlo, Monaco, "Cascadia Code", "Courier New", monospace;
+      font-size: 11px;
+      color: #d4d4d4;
+      background: #1e1e1e;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      background: #252526;
+      border-bottom: 1px solid #3c3c3c;
+      flex-shrink: 0;
+    }
+
+    .toolbar button {
+      background: #3c3c3c;
+      border: 1px solid #555;
+      color: #d4d4d4;
+      padding: 2px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    .toolbar button:hover { background: #4c4c4c; }
+
+    .toolbar input {
+      background: #3c3c3c;
+      border: 1px solid #555;
+      color: #d4d4d4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-family: inherit;
+      flex: 1;
+      max-width: 300px;
+    }
+
+    .toolbar .status {
+      margin-left: auto;
+      color: #888;
+    }
+
+    .toolbar .status.connected { color: #4ec9b0; }
+    .toolbar .status.disconnected { color: #f44747; }
+
+    .method-filters {
+      display: flex;
+      gap: 4px;
+    }
+
+    .method-filters button {
+      background: none;
+      border: 1px solid transparent;
+      color: #888;
+      padding: 1px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 10px;
+      font-family: inherit;
+    }
+
+    .method-filters button.active {
+      color: #d4d4d4;
+      border-color: #555;
+      background: #3c3c3c;
+    }
+
+    .content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .request-list {
+      flex: 1;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: #252526;
+      z-index: 1;
+    }
+
+    th {
+      text-align: left;
+      padding: 4px 8px;
+      border-bottom: 1px solid #3c3c3c;
+      color: #888;
+      font-weight: normal;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    td {
+      padding: 3px 8px;
+      border-bottom: 1px solid #2d2d2d;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 400px;
+    }
+
+    tr.row { cursor: pointer; }
+    tr.row:hover { background: #2a2d2e; }
+    tr.row.selected { background: #094771; }
+
+    .status-2xx { color: #4ec9b0; }
+    .status-3xx { color: #dcdcaa; }
+    .status-4xx { color: #ce9178; }
+    .status-5xx { color: #f44747; }
+    .status-err { color: #f44747; font-style: italic; }
+
+    .method-get { color: #4ec9b0; }
+    .method-post { color: #dcdcaa; }
+    .method-put { color: #ce9178; }
+    .method-delete { color: #f44747; }
+    .method-patch { color: #c586c0; }
+
+    .detail-panel {
+      width: 450px;
+      border-left: 1px solid #3c3c3c;
+      background: #1e1e1e;
+      overflow: auto;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .detail-panel.open { display: block; }
+
+    .detail-tabs {
+      display: flex;
+      background: #252526;
+      border-bottom: 1px solid #3c3c3c;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .detail-tabs button {
+      background: none;
+      border: none;
+      color: #888;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+    }
+
+    .detail-tabs button.active {
+      color: #d4d4d4;
+      border-bottom-color: #007acc;
+    }
+
+    .detail-content {
+      padding: 8px;
+    }
+
+    .detail-section {
+      margin-bottom: 12px;
+    }
+
+    .detail-section h3 {
+      color: #888;
+      font-size: 11px;
+      font-weight: normal;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .header-row {
+      display: flex;
+      padding: 2px 0;
+      border-bottom: 1px solid #2d2d2d;
+    }
+
+    .header-name {
+      color: #9cdcfe;
+      min-width: 160px;
+      flex-shrink: 0;
+    }
+
+    .header-value {
+      color: #ce9178;
+      word-break: break-all;
+    }
+
+    .body-preview {
+      background: #252526;
+      padding: 8px;
+      border-radius: 3px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 400px;
+      overflow: auto;
+      color: #d4d4d4;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #555;
+      font-size: 13px;
+    }
+
+    .timing-bar {
+      height: 12px;
+      background: #007acc;
+      border-radius: 2px;
+      min-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="clearRequests()">Clear</button>
+    <input id="filterInput" type="text" placeholder="Filter by URL..." oninput="applyFilters()">
+    <div class="method-filters" id="methodFilters">
+      <button class="active" data-method="all" onclick="toggleMethod(this)">All</button>
+      <button data-method="GET" onclick="toggleMethod(this)">GET</button>
+      <button data-method="POST" onclick="toggleMethod(this)">POST</button>
+      <button data-method="PUT" onclick="toggleMethod(this)">PUT</button>
+      <button data-method="DELETE" onclick="toggleMethod(this)">DEL</button>
+    </div>
+    <span id="statusIndicator" class="status disconnected">connecting...</span>
+  </div>
+
+  <div class="content">
+    <div class="request-list" id="requestList">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:60px">Method</th>
+            <th>URL</th>
+            <th style="width:50px">Status</th>
+            <th style="width:70px">Duration</th>
+            <th style="width:60px">Size</th>
+            <th style="width:70px">Time</th>
+          </tr>
+        </thead>
+        <tbody id="requestBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState">Waiting for server-side requests...</div>
+    </div>
+
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-tabs">
+        <button class="active" onclick="showTab('headers', this)">Headers</button>
+        <button onclick="showTab('request', this)">Request</button>
+        <button onclick="showTab('response', this)">Response</button>
+        <button onclick="showTab('timing', this)">Timing</button>
+      </div>
+      <div class="detail-content" id="detailContent"></div>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
