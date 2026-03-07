@@ -21,13 +21,18 @@ What we actually want is a **transparent dev-only layer** — something that cap
 ## Architecture
 
 ```mermaid
-flowchart LR
+---
+config:
+  layout: elk
+  theme: redux
+---
+flowchart TD
     subgraph Your Next.js App
         A[next dev] -->|spawned by| CLI["n-ext CLI"]
         SC[Server Components<br>Server Actions<br>Route Handlers] -->|fetch / http.request| INT
     end
 
-    subgraph n-ext Runtime <br><i>injected via NODE_OPTIONS=--require</i>
+    subgraph "n-ext Runtime <br><i>injected via NODE_OPTIONS=--require</i>"
         INT[Interceptors<br>fetch · http · https] -->|capture event| STORE[Event Store<br>in-memory ring buffer]
         STORE --> SEE["/see HTTP Server<br>:3894"]
     end
