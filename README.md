@@ -12,6 +12,65 @@ Next.js Server DevTools — capture and inspect server-side network requests (fe
   <img src="docs/screenshot-02.png" width="49%" alt="n-ext request detail view" />
 </p>
 
+## 🚀 Getting started
+
+### 1. Install
+
+```bash
+npm install @chaiops/n-ext --save-dev
+# or
+pnpm add -D @chaiops/n-ext
+```
+
+Or try it without installing:
+
+```bash
+npx @chaiops/n-ext dev
+```
+
+### 2. Update your dev script
+
+```json
+{
+  "scripts": {
+    "dev": "n-ext dev"
+  }
+}
+```
+
+All arguments are forwarded to `next dev`:
+
+```json
+{
+  "scripts": {
+    "dev": "n-ext dev --port 3099 --turbopack"
+  }
+}
+```
+
+### 3. Install the Chrome extension
+
+1. Download [`n-ext-chrome-v0.0.1-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.1-alpha/n-ext-chrome-v0.0.1-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
+2. Unzip the downloaded file
+3. Open `chrome://extensions` and enable **Developer mode**
+4. Click **Load unpacked** and select the unzipped folder
+5. Open DevTools on your app — you'll see a **🍵 n-ext** tab
+
+### 4. Run your app
+
+```bash
+npm run dev
+```
+
+You should see:
+
+```
+[n-ext] DevTools server running at http://127.0.0.1:3894/see
+[n-ext] Interceptors installed (server mode)
+```
+
+Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to see captured server-side requests.
+
 ## 💡 Why
 
 Next.js server components, server actions, and route handlers make API calls that are **invisible** to the browser's Network tab. You're left with a few options, none of them great:
@@ -76,65 +135,6 @@ flowchart TD
 - 🧩 **No app changes needed** — interception happens at the runtime level via `--require`
 - 🔒 **Listens on `127.0.0.1` only** — never exposed to the network
 - 🪶 **Minimal footprint** — a single `--require` flag, no middleware, no config files
-
-## 🚀 Getting started
-
-### 1. Install
-
-```bash
-npm install @chaiops/n-ext --save-dev
-# or
-pnpm add -D @chaiops/n-ext
-```
-
-Or try it without installing:
-
-```bash
-npx @chaiops/n-ext dev
-```
-
-### 2. Update your dev script
-
-```json
-{
-  "scripts": {
-    "dev": "n-ext dev"
-  }
-}
-```
-
-All arguments are forwarded to `next dev`:
-
-```json
-{
-  "scripts": {
-    "dev": "n-ext dev --port 3099 --turbopack"
-  }
-}
-```
-
-### 3. Install the Chrome extension
-
-1. Download [`n-ext-chrome-v0.0.1-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.1-alpha/n-ext-chrome-v0.0.1-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
-2. Unzip the downloaded file
-3. Open `chrome://extensions` and enable **Developer mode**
-4. Click **Load unpacked** and select the unzipped folder
-5. Open DevTools on your app — you'll see an **n-ext** panel
-
-### 4. Run your app
-
-```bash
-npm run dev
-```
-
-You should see:
-
-```
-[n-ext] DevTools server running at http://127.0.0.1:3894/see
-[n-ext] Interceptors installed (server mode)
-```
-
-Open your app in Chrome, open DevTools, and switch to the **n-ext** tab to see captured server-side requests.
 
 ## ✅ Verify it works
 
