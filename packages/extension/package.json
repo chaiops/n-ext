@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && cp ../../README.md dist/README.md"
+    "build": "vite build"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

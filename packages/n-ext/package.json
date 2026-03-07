@@ -1,6 +1,6 @@
 {
   "name": "@chaiops/n-ext",
-  "version": "0.0.2-alpha",
+  "version": "0.0.3-alpha",
   "description": "Next.js Server DevTools — capture and inspect server-side network requests",
   "license": "MIT",
   "author": "Anuj",
@@ -34,7 +34,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && cp ../../README.md README.md",
     "dev": "tsup --watch"
   },
   "devDependencies": {

@@ -14,18 +14,20 @@ Next.js Server DevTools — capture and inspect server-side network requests (fe
 
 ## 🚀 Getting started
 
-### 1. Install
+Just replace `next` with `n-ext` in your dev command — that's it, you get a full network inspector for Next.js.
+
+### 1. Run
+
+```bash
+npx @chaiops/n-ext dev
+```
+
+Or install as a dev dependency:
 
 ```bash
 npm install @chaiops/n-ext --save-dev
 # or
 pnpm add -D @chaiops/n-ext
-```
-
-Or try it without installing:
-
-```bash
-npx @chaiops/n-ext dev
 ```
 
 ### 2. Update your dev script
@@ -50,7 +52,7 @@ All arguments are forwarded to `next dev`:
 
 ### 3. Install the Chrome extension
 
-1. Download [`n-ext-chrome-v0.0.1-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.1-alpha/n-ext-chrome-v0.0.1-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
+1. Download [`n-ext-chrome-v0.0.3-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.3-alpha/n-ext-chrome-v0.0.3-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
 2. Unzip the downloaded file
 3. Open `chrome://extensions` and enable **Developer mode**
 4. Click **Load unpacked** and select the unzipped folder
@@ -70,6 +72,29 @@ You should see:
 ```
 
 Open your app in Chrome, open DevTools, and switch to the **🍵 n-ext** tab to see captured server-side requests.
+
+## ✨ Features
+
+| Feature | Details |
+|---|---|
+| **Automatic interception** | Captures `fetch`, `http.request`, and `https.request` — no code changes needed |
+| **Chrome DevTools panel** | Dedicated **🍵 n-ext** tab with request list, headers, body preview, and timing |
+| **JSON tree preview** | Collapsible JSON viewer for request and response bodies |
+| **Method & URL filtering** | Filter by HTTP method (GET, POST, PUT, DELETE) and URL pattern |
+| **Request details** | View request/response headers, bodies, status codes, duration, and size |
+| **Copy to clipboard** | One-click copy for request and response bodies (auto-formatted JSON) |
+| **Copy as cURL** | Export any captured request as a ready-to-run cURL command |
+| **Cursor-based polling** | Efficient incremental updates — only fetches new events |
+| **Ring buffer storage** | Keeps the last 1000 events in memory with zero disk I/O |
+| **Development only** | Refuses to start if `NODE_ENV=production` — zero production impact |
+| **Zero config** | No middleware, no config files — just replace `next` with `n-ext` |
+| **Local only** | Listens on `127.0.0.1:3894` — never exposed to the network |
+| **Dual source tracking** | Labels each request as `fetch` or `http` so you know the origin |
+
+## 🔮 Future Scope
+
+- **MCP server** — Expose captured requests via Model Context Protocol so AI tools (Cursor, Claude Code) can read and reason about your server's network traffic
+- **CLI viewer** — Terminal-based UI for inspecting requests without opening Chrome (`n-ext --tui`)
 
 ## 💡 Why
 
@@ -252,10 +277,35 @@ Contributions are welcome! Here's how to get started:
 - Link any related issues
 - Make sure the build passes (`pnpm build`)
 
+### Building & publishing packages
+
+**n-ext (npm package):**
+```bash
+cd packages/n-ext
+pnpm build                # compiles TypeScript to dist/
+npm publish --access public  # publish to npm as @chaiops/n-ext
+```
+
+**Chrome extension:**
+```bash
+cd packages/extension
+pnpm build                # builds to dist/ (includes README)
+```
+Then load the `dist/` folder in `chrome://extensions` with **Developer mode** enabled → **Load unpacked**.
+
+**Build all packages:**
+```bash
+pnpm build:all
+```
+
+> **Note:** Bump the version in the relevant `package.json` (and `manifest.json` for the extension) before publishing.
+
 ## 👥 Contributors
 
 <!-- ALL-CONTRIBUTORS-LIST:START -->
 <a href="https://github.com/MananDesai54"><img src="https://github.com/MananDesai54.png" width="60px" alt="MananDesai54" style="border-radius:50%" /></a>
+<a href="https://github.com/anuj-kosambi"><img src="https://github.com/anuj-kosambi.png" width="60px" alt="anuj-kosambi" style="border-radius:50%" /></a>
+<a href="https://github.com/centerseat"><img src="https://github.com/centerseat.png" width="60px" alt="centerseat" style="border-radius:50%" /></a>
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 Built with ❤️ in India 🇮🇳
