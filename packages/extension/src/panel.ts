@@ -1,32 +1,49 @@
-import renderjson from "./renderjson.js";
+import renderjson from "renderjson";
 
 renderjson.set_show_to_level(1);
 renderjson.set_icons("▶ ", "▼ ");
 renderjson.set_sort_objects(true);
 
-let allRequests = [];
-let selectedRequest = null;
+interface NExtEvent {
+  id: string;
+  url: string;
+  method: string;
+  requestHeaders: Record<string, string>;
+  requestBody: string | null;
+  status: number | null;
+  statusText: string | null;
+  responseHeaders: Record<string, string>;
+  responseBody: string | null;
+  responseSize: number | null;
+  duration: number;
+  timestamp: number;
+  error: string | null;
+  source: "fetch" | "http";
+}
+
+let allRequests: NExtEvent[] = [];
+let selectedRequest: NExtEvent | null = null;
 let activeTab = "headers";
 let activeMethod = "all";
 let cursor = 0;
-let pollTimer = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const SEE_URL = "http://127.0.0.1:3894/see";
 const CLEAR_URL = "http://127.0.0.1:3894/clear";
 
-function setStatus(text, connected) {
-  const el = document.getElementById("statusIndicator");
+function setStatus(_text: string, connected: boolean): void {
+  const el = document.getElementById("statusIndicator")!;
   el.textContent = connected ? "🟢 Connected" : "🔴 Disconnected";
   el.className = "status " + (connected ? "connected" : "disconnected");
 }
 
-function closeDetail() {
+function closeDetail(): void {
   selectedRequest = null;
-  document.getElementById("detailPanel").classList.remove("open");
+  document.getElementById("detailPanel")!.classList.remove("open");
   document.querySelectorAll("tr.row").forEach((row) => row.classList.remove("selected"));
 }
 
-async function poll() {
+async function poll(): Promise<void> {
   try {
     const url = cursor > 0 ? `${SEE_URL}?cursor=${cursor}` : SEE_URL;
     const res = await fetch(url);
@@ -51,14 +68,14 @@ async function poll() {
   }
 }
 
-function startPolling() {
+function startPolling(): void {
   if (pollTimer) clearInterval(pollTimer);
   poll();
   pollTimer = setInterval(poll, 500);
 }
 
-function applyFilters() {
-  const filter = document.getElementById("filterInput").value.toLowerCase();
+function applyFilters(): void {
+  const filter = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
   let filtered = allRequests;
 
   if (filter) {
@@ -72,9 +89,9 @@ function applyFilters() {
   renderRequests(filtered);
 }
 
-function renderRequests(requests) {
-  const tbody = document.getElementById("requestBody");
-  const empty = document.getElementById("emptyState");
+function renderRequests(requests: NExtEvent[]): void {
+  const tbody = document.getElementById("requestBody")!;
+  const empty = document.getElementById("emptyState") as HTMLElement;
 
   if (requests.length === 0) {
     tbody.innerHTML = "";
@@ -107,9 +124,9 @@ function renderRequests(requests) {
     .join("");
 }
 
-function selectRequest(id) {
+function selectRequest(id: string): void {
   selectedRequest = allRequests.find((r) => r.id === id) || null;
-  const panel = document.getElementById("detailPanel");
+  const panel = document.getElementById("detailPanel")!;
 
   if (selectedRequest) {
     panel.classList.add("open");
@@ -119,19 +136,19 @@ function selectRequest(id) {
   }
 
   document.querySelectorAll("tr.row").forEach((row) => {
-    row.classList.toggle("selected", row.dataset.id === id);
+    (row as HTMLElement).classList.toggle("selected", (row as HTMLElement).dataset.id === id);
   });
 }
 
-function showTab(tab, btn) {
+function showTab(tab: string, btn: HTMLElement): void {
   activeTab = tab;
   document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   renderDetail();
 }
 
-function renderDetail() {
-  const content = document.getElementById("detailContent");
+function renderDetail(): void {
+  const content = document.getElementById("detailContent")!;
   if (!selectedRequest) return;
 
   const req = selectedRequest;
@@ -160,22 +177,24 @@ function renderDetail() {
     case "request":
       content.innerHTML = `
         <div class="detail-section">
-          <h3>Request Body</h3>
+          <div class="section-header"><h3>Request Body</h3><button class="copy-btn" id="copyBodyBtn" title="Copy to clipboard">📋 Copy</button></div>
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.requestBody);
+      document.getElementById("copyBodyBtn")!.addEventListener("click", () => copyToClipboard(req.requestBody));
       break;
 
     case "response":
       content.innerHTML = `
         <div class="detail-section">
-          <h3>Response Body ${req.responseSize != null ? "(" + formatSize(req.responseSize) + ")" : ""}</h3>
+          <div class="section-header"><h3>Response Body ${req.responseSize != null ? "(" + formatSize(req.responseSize) + ")" : ""}</h3><button class="copy-btn" id="copyBodyBtn" title="Copy to clipboard">📋 Copy</button></div>
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.responseBody);
+      document.getElementById("copyBodyBtn")!.addEventListener("click", () => copyToClipboard(req.responseBody));
       break;
 
-    case "timing":
+    case "timing": {
       const maxDur = Math.max(...allRequests.map((r) => r.duration || 0), 1);
       const pct = ((req.duration || 0) / maxDur) * 100;
       content.innerHTML = `
@@ -185,10 +204,11 @@ function renderDetail() {
           <div style="margin-top:8px"><div class="timing-bar" style="width:${Math.max(pct, 1)}%"></div></div>
         </div>`;
       break;
+    }
   }
 }
 
-function renderHeaders(headers) {
+function renderHeaders(headers: Record<string, string>): string {
   if (!headers || Object.keys(headers).length === 0) return "<div>(none)</div>";
   return Object.entries(headers)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -196,8 +216,29 @@ function renderHeaders(headers) {
     .join("");
 }
 
-function renderBodyInto(elementId, body) {
-  const container = document.getElementById(elementId);
+function copyToClipboard(text: string | null): void {
+  if (!text) return;
+  const btn = document.getElementById("copyBodyBtn")!;
+  try {
+    let formatted = text;
+    try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch { /* not json */ }
+    const textarea = document.createElement("textarea");
+    textarea.value = formatted;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    btn.textContent = "✅ Copied!";
+  } catch {
+    btn.textContent = "❌ Failed";
+  }
+  setTimeout(() => { btn.textContent = "📋 Copy"; }, 1500);
+}
+
+function renderBodyInto(elementId: string, body: string | null): void {
+  const container = document.getElementById(elementId)!;
   if (!body) {
     container.textContent = "(empty)";
     return;
@@ -210,28 +251,28 @@ function renderBodyInto(elementId, body) {
   }
 }
 
-async function clearRequests() {
+async function clearRequests(): Promise<void> {
   try {
     const res = await fetch(CLEAR_URL, { method: "POST" });
     if (res.ok) {
       const data = await res.json();
       cursor = data.cursor;
     }
-  } catch {}
+  } catch { /* ignore */ }
   allRequests = [];
   selectedRequest = null;
-  document.getElementById("detailPanel").classList.remove("open");
+  document.getElementById("detailPanel")!.classList.remove("open");
   applyFilters();
 }
 
-function toggleMethod(btn) {
-  activeMethod = btn.dataset.method;
+function toggleMethod(btn: HTMLElement): void {
+  activeMethod = btn.dataset.method!;
   document.querySelectorAll("#methodFilters button").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   applyFilters();
 }
 
-function getStatusClass(status) {
+function getStatusClass(status: number | null): string {
   if (!status) return "status-err";
   if (status >= 200 && status < 300) return "status-2xx";
   if (status >= 300 && status < 400) return "status-3xx";
@@ -239,18 +280,18 @@ function getStatusClass(status) {
   return "status-5xx";
 }
 
-function formatSize(bytes) {
+function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + "B";
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + "KB";
   return (bytes / (1024 * 1024)).toFixed(1) + "MB";
 }
 
-function formatTime(ts) {
+function formatTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function shortenUrl(url) {
+function shortenUrl(url: string): string {
   try {
     const u = new URL(url);
     return u.pathname + u.search;
@@ -260,30 +301,30 @@ function shortenUrl(url) {
 }
 
 const _escapeEl = document.createElement("div");
-function escapeHtml(str) {
+function escapeHtml(str: string): string {
   _escapeEl.textContent = str;
   return _escapeEl.innerHTML;
 }
 
 // Event delegation
-document.getElementById("requestBody").addEventListener("click", (e) => {
-  const row = e.target.closest("tr.row");
-  if (row && row.dataset.id) selectRequest(row.dataset.id);
+document.getElementById("requestBody")!.addEventListener("click", (e) => {
+  const row = (e.target as HTMLElement).closest("tr.row") as HTMLElement | null;
+  if (row?.dataset.id) selectRequest(row.dataset.id);
 });
 
-document.getElementById("clearBtn").addEventListener("click", clearRequests);
-document.getElementById("filterInput").addEventListener("input", applyFilters);
+document.getElementById("clearBtn")!.addEventListener("click", clearRequests);
+document.getElementById("filterInput")!.addEventListener("input", applyFilters);
 
-document.getElementById("methodFilters").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-method]");
+document.getElementById("methodFilters")!.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest("button[data-method]") as HTMLElement | null;
   if (btn) toggleMethod(btn);
 });
 
-document.getElementById("detailTabs").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-tab]");
-  if (btn) showTab(btn.dataset.tab, btn);
+document.getElementById("detailTabs")!.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest("button[data-tab]") as HTMLElement | null;
+  if (btn) showTab(btn.dataset.tab!, btn);
 });
 
-document.getElementById("detailCloseBtn").addEventListener("click", closeDetail);
+document.getElementById("detailCloseBtn")!.addEventListener("click", closeDetail);
 
 startPolling();

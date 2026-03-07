@@ -7,6 +7,11 @@
     "build": "vite build"
   },
   "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "typescript": "^5",
     "vite": "^6"
+  },
+  "dependencies": {
+    "renderjson": "^1.4.0"
   }
 }
