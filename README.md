@@ -112,10 +112,11 @@ All arguments are forwarded to `next dev`:
 
 ### 3. Install the Chrome extension
 
-1. Open `chrome://extensions`
-2. Enable "Developer mode"
-3. Click "Load unpacked" and select the `packages/extension` directory
-4. Open DevTools on your app — you'll see an **n-ext** panel
+1. Download the latest `n-ext-chrome-v*.zip` from [GitHub Releases](https://github.com/chaiops/n-ext/releases)
+2. Unzip the downloaded file
+3. Open `chrome://extensions` and enable **Developer mode**
+4. Click **Load unpacked** and select the unzipped folder
+5. Open DevTools on your app — you'll see an **n-ext** panel
 
 ### 4. Run your app
 
@@ -255,3 +256,7 @@ Contributions are welcome! Here's how to get started:
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 Built with ❤️ in India 🇮🇳
+
+## 📄 License
+
+[MIT](LICENSE)

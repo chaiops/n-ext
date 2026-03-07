@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  "n-ext",
+  "🍵 n-ext",
   null,
   "panel.html"
 );

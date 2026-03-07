@@ -1,0 +1,38 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "ext-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/ext-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Package extension
+        run: |
+          cd packages/extension
+          zip -r "../../n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip" \
+            manifest.json devtools.html devtools.js panel.html panel.js icons/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Chrome Extension v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## 🔍 n-ext Chrome Extension v${{ steps.version.outputs.VERSION }}
+
+            ### Install
+            1. Download `n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip` below
+            2. Open `chrome://extensions` → Enable **Developer mode**
+            3. Click **Load unpacked** → Select the extracted folder
+          files: n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip
