@@ -247,3 +247,11 @@ Contributions are welcome! Here's how to get started:
 - Describe *what* changed and *why* in the PR description
 - Link any related issues
 - Make sure the build passes (`pnpm build`)
+
+## 👥 Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START -->
+<a href="https://github.com/MananDesai54"><img src="https://github.com/MananDesai54.png" width="60px" alt="MananDesai54" style="border-radius:50%" /></a>
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+Built with ❤️ in India 🇮🇳
