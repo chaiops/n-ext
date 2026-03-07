@@ -4,8 +4,6 @@ Next.js Server DevTools — capture and inspect server-side network requests (fe
 
 > ⚠️ **Development only.** n-ext is designed exclusively for local development. It does not ship to production, adds zero runtime overhead to production builds, and refuses to start if `NODE_ENV=production`. Think of it like React DevTools — a transparent layer that exists only while you're building.
 
-![n-ext DevTools panel showing captured server-side requests](docs/screenshot.png)
-
 <p align="center">
   <img src="docs/screenshot-01.png" width="49%" alt="n-ext request list view" />
   <img src="docs/screenshot-02.png" width="49%" alt="n-ext request detail view" />
@@ -81,39 +79,15 @@ flowchart TD
 ### 1. Install
 
 ```bash
-npm install n-ext --save-dev
+npm install @chaiops/n-ext --save-dev
 # or
-pnpm add -D n-ext
+pnpm add -D @chaiops/n-ext
 ```
 
-#### Local install (without publishing)
-
-If you're working from a local clone of this repo, build first then link:
+Or try it without installing:
 
 ```bash
-# In the n-ext repo
-cd packages/n-ext
-pnpm build
-
-# In your Next.js app
-pnpm add -D /path/to/n-ext/packages/n-ext
-```
-
-This adds a `file:` dependency in your `package.json`:
-
-```json
-{
-  "devDependencies": {
-    "n-ext": "file:/path/to/n-ext/packages/n-ext"
-  }
-}
-```
-
-After any changes to `packages/n-ext`, rebuild and reinstall:
-
-```bash
-cd /path/to/n-ext/packages/n-ext && pnpm build
-cd /path/to/your-app && pnpm install
+npx @chaiops/n-ext dev
 ```
 
 ### 2. Update your dev script
@@ -243,18 +217,29 @@ Contributions are welcome! Here's how to get started:
 
 1. **Fork** the repo and clone your fork
 2. **Install** dependencies: `pnpm install`
-3. **Create a branch** from `main`:
+3. **Link locally** to test in a Next.js app:
+   ```bash
+   cd packages/n-ext && pnpm build
+   # In your Next.js app
+   pnpm add -D /path/to/n-ext/packages/n-ext
+   ```
+   This adds a `file:` dependency. After any changes, rebuild and reinstall:
+   ```bash
+   cd /path/to/n-ext/packages/n-ext && pnpm build
+   cd /path/to/your-app && pnpm install
+   ```
+4. **Create a branch** from `main`:
    ```bash
    git checkout -b feat/my-feature
    ```
-4. **Make your changes** — follow the code style and commit conventions above
-5. **Build & test** locally:
+5. **Make your changes** — follow the code style and commit conventions above
+6. **Build & test** locally:
    ```bash
    pnpm build
    cd apps/demo && pnpm dev
    # Open Chrome DevTools → n-ext tab and verify your changes
    ```
-6. **Push** and open a pull request against `main`
+7. **Push** and open a pull request against `main`
 
 ### PR guidelines
 

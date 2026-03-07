@@ -1,9 +1,14 @@
 {
-  "name": "n-ext",
+  "name": "@chaiops/n-ext",
   "version": "0.1.0",
   "description": "Next.js Server DevTools — capture and inspect server-side network requests",
   "license": "MIT",
   "author": "Anuj",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaiops/n-ext"
+  },
+  "keywords": ["nextjs", "devtools", "server", "fetch", "http", "interceptor", "debug"],
   "bin": {
     "n-ext": "./dist/cli.js"
   },
@@ -11,6 +16,9 @@
     "./runtime/register": "./dist/runtime/register.js"
   },
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
