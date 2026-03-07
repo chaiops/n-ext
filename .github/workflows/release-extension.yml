@@ -36,3 +36,21 @@ jobs:
             2. Open `chrome://extensions` → Enable **Developer mode**
             3. Click **Load unpacked** → Select the extracted folder
           files: n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip
+
+      - name: Update download links in README
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i -E \
+            "s|n-ext-chrome-v[0-9a-z.\-]+\.zip|n-ext-chrome-v${VERSION}.zip|g" \
+            README.md
+          sed -i -E \
+            "s|/download/ext-v[0-9a-z.\-]+/|/download/ext-v${VERSION}/|g" \
+            README.md
+
+      - name: Commit README update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "docs: update extension download link to v${{ steps.version.outputs.VERSION }}"
+          git push origin HEAD:main
