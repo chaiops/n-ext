@@ -111,7 +111,6 @@ function renderRequests(requests: NExtEvent[]): void {
       const time = req.timestamp ? formatTime(req.timestamp) : "-";
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
       const source = req.source ? `<span class="source-badge">${req.source}</span>` : "";
-
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
         <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}</td>
