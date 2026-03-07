@@ -1,0 +1,22 @@
+{
+  "name": "n-ext",
+  "version": "0.1.0",
+  "description": "Next.js Server DevTools — capture and inspect server-side network requests",
+  "license": "MIT",
+  "author": "Anuj",
+  "bin": {
+    "n-ext": "./dist/cli.js"
+  },
+  "exports": {
+    "./runtime/register": "./dist/runtime/register.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8",
+    "typescript": "^5"
+  }
+}

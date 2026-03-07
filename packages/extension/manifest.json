@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "n-ext — Next.js Server DevTools",
+  "version": "0.1.0",
+  "description": "Chrome DevTools panel for inspecting Next.js server-side requests",
+  "devtools_page": "devtools.html",
+  "permissions": [],
+  "host_permissions": [
+    "http://127.0.0.1:3894/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

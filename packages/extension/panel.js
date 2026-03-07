@@ -2,10 +2,10 @@ let allRequests = [];
 let selectedRequest = null;
 let activeTab = "headers";
 let activeMethod = "all";
-let eventSource = null;
+let cursor = 0;
+let pollTimer = null;
 
-let reconnectTimer = null;
-let lastConnectedState = null;
+const SEE_URL = "http://127.0.0.1:3894/see";
 
 function setStatus(text, connected) {
   const el = document.getElementById("statusIndicator");
@@ -13,126 +13,35 @@ function setStatus(text, connected) {
   el.className = "status " + (connected ? "connected" : "disconnected");
 }
 
-function connect() {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  setStatus("⏳ connecting...", false);
-
-  chrome.devtools.inspectedWindow.eval("window.location.origin", (origin) => {
-    if (!origin) {
-      setStatus("🔴 no page", false);
-      scheduleReconnect();
+async function poll() {
+  try {
+    const url = cursor > 0 ? `${SEE_URL}?cursor=${cursor}` : SEE_URL;
+    const res = await fetch(url);
+    if (!res.ok) {
+      setStatus("disconnected", false);
       return;
     }
+    const data = await res.json();
+    cursor = data.cursor;
 
-    const sseUrl = origin + "/api/nni/events";
-
-    chrome.devtools.inspectedWindow.eval(`
-      (function() {
-        try {
-          if (window.__nniEventSource) {
-            window.__nniEventSource.close();
-          }
-          window.__nniRequests = window.__nniRequests || [];
-          window.__nniEventSource = new EventSource(${JSON.stringify(sseUrl)});
-          window.__nniEventSource.onmessage = function(e) {
-            window.__nniRequests.push(e.data);
-          };
-          window.__nniEventSource.onerror = function() {
-            window.__nniConnected = false;
-          };
-          window.__nniEventSource.onopen = function() {
-            window.__nniConnected = true;
-          };
-          return "ok";
-        } catch(e) {
-          return "error:" + e.message;
-        }
-      })()
-    `, (result, error) => {
-      if (error || !result || result !== "ok") {
-        setStatus("🔴 failed", false);
-        scheduleReconnect();
-        return;
+    if (data.events.length > 0) {
+      for (const event of data.events) {
+        allRequests.unshift(event);
+        if (allRequests.length > 200) allRequests.pop();
       }
-      setStatus("🟢 connected", true);
-      lastConnectedState = true;
-      startPolling();
-    });
-  });
-}
+      applyFilters();
+    }
 
-function scheduleReconnect() {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
-  reconnectTimer = setTimeout(() => {
-    connect();
-  }, 3000);
+    setStatus("connected", true);
+  } catch {
+    setStatus("disconnected", false);
+  }
 }
-
-let pollInterval = null;
 
 function startPolling() {
-  if (pollInterval) clearInterval(pollInterval);
-
-  pollInterval = setInterval(() => {
-    chrome.devtools.inspectedWindow.eval(`
-      (function() {
-        var items = window.__nniRequests || [];
-        window.__nniRequests = [];
-        var connected = window.__nniConnected;
-        var readyState = window.__nniEventSource ? window.__nniEventSource.readyState : -1;
-        return JSON.stringify({ items: items, connected: connected, readyState: readyState });
-      })()
-    `, (result, error) => {
-      if (error || !result) {
-        if (lastConnectedState !== false) {
-          setStatus("🔴 disconnected", false);
-          lastConnectedState = false;
-        }
-        scheduleReconnect();
-        return;
-      }
-
-      try {
-        const data = JSON.parse(result);
-
-        // Process new requests
-        for (const item of data.items) {
-          try {
-            const req = JSON.parse(item);
-            allRequests.unshift(req);
-            if (allRequests.length > 200) allRequests.pop();
-          } catch {}
-        }
-        if (data.items.length > 0) applyFilters();
-
-        // Update connection status
-        // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
-        if (data.readyState === 1 && data.connected) {
-          if (lastConnectedState !== true) {
-            setStatus("🟢 connected", true);
-            lastConnectedState = true;
-          }
-        } else if (data.readyState === 0) {
-          if (lastConnectedState !== null) {
-            setStatus("🟡 reconnecting...", false);
-            lastConnectedState = null;
-          }
-        } else {
-          if (lastConnectedState !== false) {
-            setStatus("🔴 disconnected", false);
-            lastConnectedState = false;
-          }
-          // EventSource is closed or errored — reconnect
-          if (pollInterval) clearInterval(pollInterval);
-          pollInterval = null;
-          scheduleReconnect();
-        }
-      } catch {
-        setStatus("🔴 error", false);
-        scheduleReconnect();
-      }
-    });
-  }, 500);
+  if (pollTimer) clearInterval(pollTimer);
+  poll();
+  pollTimer = setInterval(poll, 500);
 }
 
 function applyFilters() {
@@ -171,10 +80,11 @@ function renderRequests(requests) {
       const duration = req.duration != null ? Math.round(req.duration) + "ms" : "-";
       const time = req.timestamp ? formatTime(req.timestamp) : "-";
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
+      const source = req.source ? `<span class="source-badge">${req.source}</span>` : "";
 
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
-        <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)}</td>
+        <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}</td>
         <td class="${statusClass}">${req.error ? "ERR" : req.status || "-"}</td>
         <td>${duration}</td>
         <td>${size}</td>
@@ -222,6 +132,7 @@ function renderDetail() {
           <div class="header-row"><span class="header-name">Method</span><span class="header-value">${req.method || "-"}</span></div>
           <div class="header-row"><span class="header-name">Status</span><span class="header-value">${req.error ? "Error: " + escapeHtml(req.error) : (req.status || "-") + " " + (req.statusText || "")}</span></div>
           <div class="header-row"><span class="header-name">Duration</span><span class="header-value">${req.duration != null ? req.duration.toFixed(1) + "ms" : "-"}</span></div>
+          <div class="header-row"><span class="header-name">Source</span><span class="header-value">${req.source || "-"}</span></div>
         </div>
         <div class="detail-section">
           <h3>Request Headers</h3>
@@ -279,7 +190,14 @@ function formatBody(body) {
   }
 }
 
-function clearRequests() {
+async function clearRequests() {
+  try {
+    const res = await fetch(SEE_URL.replace("/see", "/clear"), { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      cursor = data.cursor;
+    }
+  } catch {}
   allRequests = [];
   selectedRequest = null;
   document.getElementById("detailPanel").classList.remove("open");
@@ -327,14 +245,13 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Event delegation — no inline handlers (CSP)
+// Event delegation
 document.getElementById("requestBody").addEventListener("click", (e) => {
   const row = e.target.closest("tr.row");
   if (row && row.dataset.id) selectRequest(row.dataset.id);
 });
 
 document.getElementById("clearBtn").addEventListener("click", clearRequests);
-
 document.getElementById("filterInput").addEventListener("input", applyFilters);
 
 document.getElementById("methodFilters").addEventListener("click", (e) => {
@@ -347,10 +264,4 @@ document.getElementById("detailTabs").addEventListener("click", (e) => {
   if (btn) showTab(btn.dataset.tab, btn);
 });
 
-// Reconnect when the inspected page navigates
-chrome.devtools.network.onNavigated.addListener(() => {
-  setTimeout(connect, 1000);
-});
-
-// Connect on panel open
-connect();
+startPolling();

@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  "NNI",
+  "n-ext",
   null,
   "panel.html"
 );

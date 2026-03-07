@@ -1,36 +1,136 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# n-ext
 
-## Getting Started
+Next.js Server DevTools — capture and inspect server-side network requests (fetch & http) from your Next.js app in a Chrome DevTools panel.
 
-First, run the development server:
+## How it works
+
+`n-ext` wraps `next dev` and injects runtime interceptors via `NODE_OPTIONS=--require`. It patches `globalThis.fetch`, `http.request`, and `https.request` to capture all outgoing server-side requests. Captured events are exposed on `http://localhost:3894/see` for the Chrome extension to consume.
+
+## Add to an existing Next.js app
+
+### 1. Install
+
+```bash
+npm install n-ext --save-dev
+# or
+pnpm add -D n-ext
+```
+
+#### Local install (without publishing)
+
+If you're working from a local clone of this repo, build first then link:
+
+```bash
+# In the n-ext repo
+cd packages/n-ext
+pnpm build
+
+# In your Next.js app
+pnpm add -D /path/to/n-ext/packages/n-ext
+```
+
+This adds a `file:` dependency in your `package.json`:
+
+```json
+{
+  "devDependencies": {
+    "n-ext": "file:/path/to/n-ext/packages/n-ext"
+  }
+}
+```
+
+After any changes to `packages/n-ext`, rebuild and reinstall:
+
+```bash
+cd /path/to/n-ext/packages/n-ext && pnpm build
+cd /path/to/your-app && pnpm install
+```
+
+### 2. Update your dev script
+
+```json
+{
+  "scripts": {
+    "dev": "n-ext dev"
+  }
+}
+```
+
+All arguments are forwarded to `next dev`:
+
+```json
+{
+  "scripts": {
+    "dev": "n-ext dev --port 3099 --turbopack"
+  }
+}
+```
+
+### 3. Install the Chrome extension
+
+1. Open `chrome://extensions`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `packages/extension` directory
+4. Open DevTools on your app — you'll see an **n-ext** panel
+
+### 4. Run your app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+You should see:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+[n-ext] DevTools server running at http://127.0.0.1:3894/see
+[n-ext] Interceptors installed (server mode)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open your app in Chrome, open DevTools, and switch to the **n-ext** tab to see captured server-side requests.
 
-## Learn More
+## Verify it works
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Check the event stream directly
+curl http://localhost:3894/see
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# With cursor-based pagination
+curl http://localhost:3894/see?cursor=5
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Response format:
 
-## Deploy on Vercel
+```json
+{
+  "cursor": 10,
+  "events": [
+    {
+      "id": "uuid",
+      "url": "https://api.example.com/data",
+      "method": "GET",
+      "status": 200,
+      "duration": 123.4,
+      "source": "fetch",
+      ...
+    }
+  ]
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Monorepo structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+packages/
+  n-ext/          CLI + runtime interceptors + /see server
+  extension/      Chrome DevTools extension
+apps/
+  demo/           Example Next.js app
+```
+
+## Development
+
+```bash
+pnpm install
+pnpm build                # build n-ext package
+cd apps/demo && pnpm dev  # run demo with n-ext
+```

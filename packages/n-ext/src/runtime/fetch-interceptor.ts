@@ -1,5 +1,8 @@
-import { addRequest, type NetworkRequest } from "./store";
-import { getConfig } from "./config";
+import { addEvent } from "./event-store";
+import type { NExtEvent } from "../shared/event-types";
+
+const SEE_HOST = "127.0.0.1:3894";
+const MAX_BODY = 64 * 1024;
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
   const result: Record<string, string> = {};
@@ -14,7 +17,16 @@ function headersToRecord(headers: HeadersInit | undefined): Record<string, strin
   return result;
 }
 
-async function readBody(body: ReadableStream<Uint8Array> | null, maxSize: number): Promise<string | null> {
+function extractRequestBody(init: RequestInit | undefined): string | null {
+  const body = init?.body;
+  if (!body) return null;
+  if (typeof body === "string") return body.slice(0, MAX_BODY);
+  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body).slice(0, MAX_BODY);
+  if (body instanceof URLSearchParams) return body.toString().slice(0, MAX_BODY);
+  return "[stream]";
+}
+
+async function readBody(body: ReadableStream<Uint8Array> | null): Promise<string | null> {
   if (!body) return null;
   try {
     const reader = body.getReader();
@@ -25,51 +37,20 @@ async function readBody(body: ReadableStream<Uint8Array> | null, maxSize: number
       if (done) break;
       chunks.push(value);
       size += value.length;
-      if (size > maxSize) { reader.cancel(); break; }
+      if (size > MAX_BODY) { reader.cancel(); break; }
     }
     const merged = new Uint8Array(size);
     let offset = 0;
     for (const c of chunks) { merged.set(c, offset); offset += c.length; }
     return new TextDecoder().decode(merged);
-  } catch (err) {
-    console.debug("[NNI] Failed to read response body:", err);
-    return null;
-  }
-}
-
-function extractRequestBody(init: RequestInit | undefined, maxSize: number): string | null {
-  const body = init?.body;
-  if (!body) return null;
-  if (typeof body === "string") return body.slice(0, maxSize);
-  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body).slice(0, maxSize);
-  if (body instanceof URLSearchParams) return body.toString().slice(0, maxSize);
-  return "[stream]";
-}
-
-let cookiesFn: (() => Promise<{ get(name: string): { value: string } | undefined }>) | null = null;
-
-async function resolveFingerprint(cookieName: string): Promise<string | undefined> {
-  if (!cookiesFn) {
-    try {
-      const mod = await import("next/headers");
-      cookiesFn = mod.cookies;
-    } catch {
-      return undefined;
-    }
-  }
-
-  try {
-    const cookieStore = await cookiesFn!();
-    return cookieStore.get(cookieName)?.value;
   } catch {
-    // Expected outside request context (build time, module eval, telemetry fetches)
-    return undefined;
+    return null;
   }
 }
 
 let installed = false;
 
-export function installInterceptor() {
+export function installFetchInterceptor() {
   if (installed) return;
   installed = true;
 
@@ -79,19 +60,15 @@ export function installInterceptor() {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> {
-    const config = getConfig();
-    const fingerprint = await resolveFingerprint(config.cookieName);
-    if (!fingerprint) return originalFetch(input, init);
-
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
-    if (url.includes(config.apiPath)) return originalFetch(input, init);
+    if (url.includes(SEE_HOST)) return originalFetch(input, init);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const requestHeaders = headersToRecord(
       init?.headers ?? (input instanceof Request ? input.headers : undefined)
     );
-    const requestBody = extractRequestBody(init, config.maxBodySize);
+    const requestBody = extractRequestBody(init);
     const id = crypto.randomUUID();
     const start = performance.now();
 
@@ -99,13 +76,13 @@ export function installInterceptor() {
     try {
       response = await originalFetch(input, init);
     } catch (err: unknown) {
-      const doc: NetworkRequest = {
+      addEvent({
         id, url, method, requestHeaders, requestBody,
         status: null, statusText: null, responseHeaders: {}, responseBody: null,
         responseSize: null, duration: performance.now() - start,
         timestamp: Date.now(), error: err instanceof Error ? err.message : String(err),
-      };
-      addRequest(fingerprint, doc);
+        source: "fetch",
+      });
       throw err;
     }
 
@@ -114,18 +91,16 @@ export function installInterceptor() {
     response.headers.forEach((v, k) => { responseHeaders[k] = v; });
 
     const cloned = response.clone();
-    readBody(cloned.body, config.maxBodySize).then((responseBody) => {
-      const doc: NetworkRequest = {
+    readBody(cloned.body).then((responseBody) => {
+      addEvent({
         id, url, method, requestHeaders, requestBody,
         status: response.status, statusText: response.statusText,
         responseHeaders, responseBody, responseSize: responseBody?.length ?? null,
         duration, timestamp: Date.now(), error: null,
-      };
-      addRequest(fingerprint, doc);
+        source: "fetch",
+      });
     });
 
     return response;
   };
-
-  console.log("[NNI] Network interceptor installed");
 }
