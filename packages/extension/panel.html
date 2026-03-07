@@ -328,6 +328,24 @@
       border-radius: 2px;
       min-width: 2px;
     }
+    .jwt-decoded {
+      margin: 4px 0 4px 12px;
+      padding: 6px 8px;
+      background: #1a2a1a;
+      border-left: 3px solid #4ec9b0;
+      border-radius: 3px;
+    }
+    .jwt-decoded .header-name {
+      color: #4ec9b0;
+      font-size: 11px;
+    }
+    .jwt-payload {
+      margin: 4px 0 0;
+      font-size: 11px;
+      color: #d4d4d4;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -367,6 +385,7 @@
         <button class="active" data-tab="headers">Headers</button>
         <button data-tab="request">Request</button>
         <button data-tab="response">Response</button>
+        <button data-tab="auth" id="authTab" style="display:none">Auth</button>
         <button data-tab="timing">Timing</button>
         <button class="close-btn" id="detailCloseBtn" title="Close">✕</button>
       </div>

@@ -130,6 +130,13 @@ function selectRequest(id: string): void {
 
   if (selectedRequest) {
     panel.classList.add("open");
+    const authTab = document.getElementById("authTab") as HTMLElement;
+    if (authTab) authTab.style.display = hasBearerToken(selectedRequest) ? "" : "none";
+    if (activeTab === "auth" && !hasBearerToken(selectedRequest)) {
+      activeTab = "headers";
+      document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
+      document.querySelector('.detail-tabs button[data-tab="headers"]')?.classList.add("active");
+    }
     renderDetail();
   } else {
     panel.classList.remove("open");
@@ -198,6 +205,22 @@ function renderDetail(): void {
       document.getElementById("copyBodyBtn")!.addEventListener("click", () => copyToClipboard(req.responseBody));
       break;
 
+    case "auth": {
+      const token = getBearerToken(req);
+      const decoded = token ? decodeJwt(token) : null;
+      content.innerHTML = `
+        ${decoded ? `<div class="detail-section">
+          <h3>JWT Payload</h3>
+          <div class="jwt-decoded"><pre class="jwt-payload">${escapeHtml(decoded)}</pre></div>
+        </div>` : ""}
+        <div class="detail-section">
+          <h3>Authorization</h3>
+          <div class="header-row"><span class="header-name">Type</span><span class="header-value">Bearer Token</span></div>
+          <div class="header-row"><span class="header-name">Token</span><span class="header-value" style="word-break:break-all">${escapeHtml(token || "")}</span></div>
+        </div>`;
+      break;
+    }
+
     case "timing": {
       const maxDur = Math.max(...allRequests.map((r) => r.duration || 0), 1);
       const pct = ((req.duration || 0) / maxDur) * 100;
@@ -244,12 +267,40 @@ function copyTextToClipboard(text: string, btn: HTMLElement, label: string): voi
   setTimeout(() => { btn.textContent = label; }, 1500);
 }
 
+function decodeJwt(token: string): string | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return null;
+  }
+}
+
 function renderHeaders(headers: Record<string, string>): string {
   if (!headers || Object.keys(headers).length === 0) return "<div>(none)</div>";
   return Object.entries(headers)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `<div class="header-row"><span class="header-name">${escapeHtml(k)}</span><span class="header-value">${escapeHtml(String(v))}</span></div>`)
     .join("");
+}
+
+function hasBearerToken(req: NExtEvent): boolean {
+  if (!req.requestHeaders) return false;
+  return Object.entries(req.requestHeaders).some(
+    ([k, v]) => k.toLowerCase() === "authorization" && v.toLowerCase().startsWith("bearer ")
+  );
+}
+
+function getBearerToken(req: NExtEvent): string | null {
+  if (!req.requestHeaders) return null;
+  for (const [k, v] of Object.entries(req.requestHeaders)) {
+    if (k.toLowerCase() === "authorization" && v.toLowerCase().startsWith("bearer ")) {
+      return v.slice(7);
+    }
+  }
+  return null;
 }
 
 function copyToClipboard(text: string | null): void {
