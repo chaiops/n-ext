@@ -238,14 +238,14 @@
 </head>
 <body>
   <div class="toolbar">
-    <button onclick="clearRequests()">Clear</button>
-    <input id="filterInput" type="text" placeholder="Filter by URL..." oninput="applyFilters()">
+    <button id="clearBtn">Clear</button>
+    <input id="filterInput" type="text" placeholder="Filter by URL...">
     <div class="method-filters" id="methodFilters">
-      <button class="active" data-method="all" onclick="toggleMethod(this)">All</button>
-      <button data-method="GET" onclick="toggleMethod(this)">GET</button>
-      <button data-method="POST" onclick="toggleMethod(this)">POST</button>
-      <button data-method="PUT" onclick="toggleMethod(this)">PUT</button>
-      <button data-method="DELETE" onclick="toggleMethod(this)">DEL</button>
+      <button class="active" data-method="all">All</button>
+      <button data-method="GET">GET</button>
+      <button data-method="POST">POST</button>
+      <button data-method="PUT">PUT</button>
+      <button data-method="DELETE">DEL</button>
     </div>
     <span id="statusIndicator" class="status disconnected">connecting...</span>
   </div>
@@ -269,11 +269,11 @@
     </div>
 
     <div class="detail-panel" id="detailPanel">
-      <div class="detail-tabs">
-        <button class="active" onclick="showTab('headers', this)">Headers</button>
-        <button onclick="showTab('request', this)">Request</button>
-        <button onclick="showTab('response', this)">Response</button>
-        <button onclick="showTab('timing', this)">Timing</button>
+      <div class="detail-tabs" id="detailTabs">
+        <button class="active" data-tab="headers">Headers</button>
+        <button data-tab="request">Request</button>
+        <button data-tab="response">Response</button>
+        <button data-tab="timing">Timing</button>
       </div>
       <div class="detail-content" id="detailContent"></div>
     </div>

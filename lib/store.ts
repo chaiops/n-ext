@@ -1,3 +1,5 @@
+import { getConfig } from "./config";
+
 export interface NetworkRequest {
   id: string;
   url: string;
@@ -14,9 +16,6 @@ export interface NetworkRequest {
   error: string | null;
 }
 
-const MAX_REQUESTS = 50;
-const TTL_MS = 60 * 60 * 1000;
-
 interface FingerprintStore {
   requests: NetworkRequest[];
   listeners: Set<(req: NetworkRequest) => void>;
@@ -29,13 +28,14 @@ if (!g[globalKey]) g[globalKey] = new Map();
 const stores = g[globalKey];
 
 function resetTTL(fingerprint: string) {
+  const config = getConfig();
   const store = stores.get(fingerprint);
   if (!store) return;
   clearTimeout(store.timer);
   store.timer = setTimeout(() => {
     store.listeners.clear();
     stores.delete(fingerprint);
-  }, TTL_MS);
+  }, config.ttlMs);
 }
 
 function getStore(fingerprint: string): FingerprintStore {
@@ -45,26 +45,32 @@ function getStore(fingerprint: string): FingerprintStore {
     return existing;
   }
 
+  const config = getConfig();
   const store: FingerprintStore = {
     requests: [],
     listeners: new Set(),
     timer: setTimeout(() => {
       store.listeners.clear();
       stores.delete(fingerprint);
-    }, TTL_MS),
+    }, config.ttlMs),
   };
   stores.set(fingerprint, store);
   return store;
 }
 
 export function addRequest(fingerprint: string, req: NetworkRequest) {
+  const config = getConfig();
   const store = getStore(fingerprint);
   store.requests.push(req);
-  if (store.requests.length > MAX_REQUESTS) {
+  if (store.requests.length > config.maxRequests) {
     store.requests.shift();
   }
   for (const listener of store.listeners) {
-    listener(req);
+    try {
+      listener(req);
+    } catch (err) {
+      console.error("[NNI] Error in listener:", err);
+    }
   }
 }
 

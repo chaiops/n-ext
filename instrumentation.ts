@@ -1,5 +1,7 @@
 export async function register() {
-  if (process.env.NODE_ENV === "development") {
+  const { getConfig } = await import("./lib/config");
+  const config = getConfig();
+  if (config.enabled) {
     const { installInterceptor } = await import("./lib/interceptor");
     installInterceptor();
   }

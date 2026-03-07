@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-const COOKIE_NAME = "__nni_fp";
+import { getConfig } from "./lib/config";
 
 export function middleware(request: NextRequest) {
-  const existing = request.cookies.get(COOKIE_NAME)?.value;
+  const nniConfig = getConfig();
+  const existing = request.cookies.get(nniConfig.cookieName)?.value;
   if (existing) return NextResponse.next();
 
   const response = NextResponse.next();
-  response.cookies.set(COOKIE_NAME, globalThis.crypto.randomUUID(), {
+  response.cookies.set(nniConfig.cookieName, globalThis.crypto.randomUUID(), {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -16,3 +16,9 @@ export function middleware(request: NextRequest) {
   });
   return response;
 }
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|api/nni).*)",
+  ],
+};

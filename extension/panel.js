@@ -4,6 +4,9 @@ let activeTab = "headers";
 let activeMethod = "all";
 let eventSource = null;
 
+let reconnectTimer = null;
+let lastConnectedState = null;
+
 function setStatus(text, connected) {
   const el = document.getElementById("statusIndicator");
   el.textContent = text;
@@ -11,43 +14,58 @@ function setStatus(text, connected) {
 }
 
 function connect() {
-  // Get the inspected page's URL to build the SSE endpoint
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  setStatus("⏳ connecting...", false);
+
   chrome.devtools.inspectedWindow.eval("window.location.origin", (origin) => {
     if (!origin) {
-      setStatus("no page", false);
+      setStatus("🔴 no page", false);
+      scheduleReconnect();
       return;
     }
 
     const sseUrl = origin + "/api/nni/events";
 
-    // We need to fetch with the page's cookies. Use the inspected page to create the connection.
     chrome.devtools.inspectedWindow.eval(`
       (function() {
-        if (window.__nniEventSource) {
-          window.__nniEventSource.close();
+        try {
+          if (window.__nniEventSource) {
+            window.__nniEventSource.close();
+          }
+          window.__nniRequests = window.__nniRequests || [];
+          window.__nniEventSource = new EventSource(${JSON.stringify(sseUrl)});
+          window.__nniEventSource.onmessage = function(e) {
+            window.__nniRequests.push(e.data);
+          };
+          window.__nniEventSource.onerror = function() {
+            window.__nniConnected = false;
+          };
+          window.__nniEventSource.onopen = function() {
+            window.__nniConnected = true;
+          };
+          return "ok";
+        } catch(e) {
+          return "error:" + e.message;
         }
-        window.__nniEventSource = new EventSource(${JSON.stringify(sseUrl)});
-        window.__nniRequests = window.__nniRequests || [];
-        window.__nniEventSource.onmessage = function(e) {
-          window.__nniRequests.push(e.data);
-        };
-        window.__nniEventSource.onerror = function() {
-          window.__nniConnected = false;
-        };
-        window.__nniEventSource.onopen = function() {
-          window.__nniConnected = true;
-        };
-        return "ok";
       })()
-    `, (result) => {
-      if (result === "ok") {
-        setStatus("connected", true);
-        startPolling();
-      } else {
-        setStatus("failed", false);
+    `, (result, error) => {
+      if (error || !result || result !== "ok") {
+        setStatus("🔴 failed", false);
+        scheduleReconnect();
+        return;
       }
+      setStatus("🟢 connected", true);
+      lastConnectedState = true;
+      startPolling();
     });
   });
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    connect();
+  }, 3000);
 }
 
 let pollInterval = null;
@@ -60,26 +78,59 @@ function startPolling() {
       (function() {
         var items = window.__nniRequests || [];
         window.__nniRequests = [];
-        return JSON.stringify(items);
+        var connected = window.__nniConnected;
+        var readyState = window.__nniEventSource ? window.__nniEventSource.readyState : -1;
+        return JSON.stringify({ items: items, connected: connected, readyState: readyState });
       })()
-    `, (result) => {
-      if (!result) return;
+    `, (result, error) => {
+      if (error || !result) {
+        if (lastConnectedState !== false) {
+          setStatus("🔴 disconnected", false);
+          lastConnectedState = false;
+        }
+        scheduleReconnect();
+        return;
+      }
+
       try {
-        const items = JSON.parse(result);
-        for (const item of items) {
+        const data = JSON.parse(result);
+
+        // Process new requests
+        for (const item of data.items) {
           try {
             const req = JSON.parse(item);
             allRequests.unshift(req);
             if (allRequests.length > 200) allRequests.pop();
           } catch {}
         }
-        if (items.length > 0) applyFilters();
-      } catch {}
-    });
+        if (data.items.length > 0) applyFilters();
 
-    // Check connection status
-    chrome.devtools.inspectedWindow.eval("window.__nniConnected", (connected) => {
-      setStatus(connected ? "connected" : "reconnecting...", !!connected);
+        // Update connection status
+        // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSED
+        if (data.readyState === 1 && data.connected) {
+          if (lastConnectedState !== true) {
+            setStatus("🟢 connected", true);
+            lastConnectedState = true;
+          }
+        } else if (data.readyState === 0) {
+          if (lastConnectedState !== null) {
+            setStatus("🟡 reconnecting...", false);
+            lastConnectedState = null;
+          }
+        } else {
+          if (lastConnectedState !== false) {
+            setStatus("🔴 disconnected", false);
+            lastConnectedState = false;
+          }
+          // EventSource is closed or errored — reconnect
+          if (pollInterval) clearInterval(pollInterval);
+          pollInterval = null;
+          scheduleReconnect();
+        }
+      } catch {
+        setStatus("🔴 error", false);
+        scheduleReconnect();
+      }
     });
   }, 500);
 }
@@ -276,12 +327,29 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Row click via event delegation
+// Event delegation — no inline handlers (CSP)
 document.getElementById("requestBody").addEventListener("click", (e) => {
   const row = e.target.closest("tr.row");
-  if (row && row.dataset.id) {
-    selectRequest(row.dataset.id);
-  }
+  if (row && row.dataset.id) selectRequest(row.dataset.id);
+});
+
+document.getElementById("clearBtn").addEventListener("click", clearRequests);
+
+document.getElementById("filterInput").addEventListener("input", applyFilters);
+
+document.getElementById("methodFilters").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-method]");
+  if (btn) toggleMethod(btn);
+});
+
+document.getElementById("detailTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (btn) showTab(btn.dataset.tab, btn);
+});
+
+// Reconnect when the inspected page navigates
+chrome.devtools.network.onNavigated.addListener(() => {
+  setTimeout(connect, 1000);
 });
 
 // Connect on panel open

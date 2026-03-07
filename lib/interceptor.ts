@@ -1,17 +1,5 @@
 import { addRequest, type NetworkRequest } from "./store";
-
-const MAX_BODY_SIZE = 64 * 1024;
-
-const fpKey = Symbol.for("__nni_fingerprint__");
-const g = globalThis as unknown as Record<symbol, string | undefined>;
-
-export function setFingerprint(fp: string | undefined) {
-  g[fpKey] = fp;
-}
-
-function getFingerprint(): string | undefined {
-  return g[fpKey];
-}
+import { getConfig } from "./config";
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
   const result: Record<string, string> = {};
@@ -26,7 +14,7 @@ function headersToRecord(headers: HeadersInit | undefined): Record<string, strin
   return result;
 }
 
-async function readBody(body: ReadableStream<Uint8Array> | null): Promise<string | null> {
+async function readBody(body: ReadableStream<Uint8Array> | null, maxSize: number): Promise<string | null> {
   if (!body) return null;
   try {
     const reader = body.getReader();
@@ -37,24 +25,46 @@ async function readBody(body: ReadableStream<Uint8Array> | null): Promise<string
       if (done) break;
       chunks.push(value);
       size += value.length;
-      if (size > MAX_BODY_SIZE) { reader.cancel(); break; }
+      if (size > maxSize) { reader.cancel(); break; }
     }
     const merged = new Uint8Array(size);
     let offset = 0;
     for (const c of chunks) { merged.set(c, offset); offset += c.length; }
     return new TextDecoder().decode(merged);
-  } catch {
+  } catch (err) {
+    console.debug("[NNI] Failed to read response body:", err);
     return null;
   }
 }
 
-function extractRequestBody(_input: RequestInfo | URL, init?: RequestInit): string | null {
+function extractRequestBody(init: RequestInit | undefined, maxSize: number): string | null {
   const body = init?.body;
   if (!body) return null;
-  if (typeof body === "string") return body.slice(0, MAX_BODY_SIZE);
-  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body).slice(0, MAX_BODY_SIZE);
-  if (body instanceof URLSearchParams) return body.toString().slice(0, MAX_BODY_SIZE);
+  if (typeof body === "string") return body.slice(0, maxSize);
+  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body).slice(0, maxSize);
+  if (body instanceof URLSearchParams) return body.toString().slice(0, maxSize);
   return "[stream]";
+}
+
+let cookiesFn: (() => Promise<{ get(name: string): { value: string } | undefined }>) | null = null;
+
+async function resolveFingerprint(cookieName: string): Promise<string | undefined> {
+  if (!cookiesFn) {
+    try {
+      const mod = await import("next/headers");
+      cookiesFn = mod.cookies;
+    } catch {
+      return undefined;
+    }
+  }
+
+  try {
+    const cookieStore = await cookiesFn!();
+    return cookieStore.get(cookieName)?.value;
+  } catch {
+    // Expected outside request context (build time, module eval, telemetry fetches)
+    return undefined;
+  }
 }
 
 let installed = false;
@@ -69,20 +79,20 @@ export function installInterceptor() {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> {
-    const fingerprint = getFingerprint();
+    const config = getConfig();
+    const fingerprint = await resolveFingerprint(config.cookieName);
     if (!fingerprint) return originalFetch(input, init);
 
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
-    // Skip SSE endpoint to avoid recursion
-    if (url.includes("/api/nni/")) return originalFetch(input, init);
+    if (url.includes(config.apiPath)) return originalFetch(input, init);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const requestHeaders = headersToRecord(
       init?.headers ?? (input instanceof Request ? input.headers : undefined)
     );
-    const requestBody = extractRequestBody(input, init);
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const requestBody = extractRequestBody(init, config.maxBodySize);
+    const id = crypto.randomUUID();
     const start = performance.now();
 
     let response: Response;
@@ -104,7 +114,7 @@ export function installInterceptor() {
     response.headers.forEach((v, k) => { responseHeaders[k] = v; });
 
     const cloned = response.clone();
-    readBody(cloned.body).then((responseBody) => {
+    readBody(cloned.body, config.maxBodySize).then((responseBody) => {
       const doc: NetworkRequest = {
         id, url, method, requestHeaders, requestBody,
         status: response.status, statusText: response.statusText,
