@@ -22,6 +22,8 @@ interface NExtEvent {
   actionId?: string;
 }
 
+const MAX_PANEL_EVENTS = 200;
+
 let allRequests: NExtEvent[] = [];
 let selectedRequest: NExtEvent | null = null;
 let activeTab = "headers";
@@ -31,15 +33,16 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const SEE_URL = "http://127.0.0.1:3894/see";
 const CLEAR_URL = "http://127.0.0.1:3894/clear";
+
+function addRequest(event: NExtEvent): void {
+  allRequests.unshift(event);
+  if (allRequests.length > MAX_PANEL_EVENTS) allRequests.pop();
+}
+
 function getActionName(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.pathname.replace(
-      /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "/[id]"
-    );
-  } catch {
-    return url;
-  }
+  return shortenUrl(url).replace(
+    /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "/[id]"
+  );
 }
 
 interface RscChunk {
@@ -120,17 +123,22 @@ if (typeof chrome !== "undefined" && chrome.devtools?.network) {
         actionId: nextActionHeader.value,
       };
 
-      allRequests.unshift(actionEvent);
-      if (allRequests.length > 200) allRequests.pop();
+      addRequest(actionEvent);
       applyFilters();
     });
   });
 }
 
-function setStatus(_text: string, connected: boolean): void {
+function setStatus(connected: boolean): void {
   const el = document.getElementById("statusIndicator")!;
   el.textContent = connected ? "🟢 Connected" : "🔴 Disconnected";
   el.className = "status " + (connected ? "connected" : "disconnected");
+}
+
+function resetToHeadersTab(): void {
+  activeTab = "headers";
+  document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
+  document.querySelector('.detail-tabs button[data-tab="headers"]')?.classList.add("active");
 }
 
 function closeDetail(): void {
@@ -145,7 +153,7 @@ async function poll(): Promise<void> {
     const url = cursor > 0 ? `${SEE_URL}?cursor=${cursor}` : SEE_URL;
     const res = await fetch(url);
     if (!res.ok) {
-      setStatus("disconnected", false);
+      setStatus(false);
       return;
     }
     const data = await res.json();
@@ -153,13 +161,12 @@ async function poll(): Promise<void> {
 
     if (data.events.length > 0) {
       for (const event of data.events) {
-        allRequests.unshift(event);
-        if (allRequests.length > 200) allRequests.pop();
+        addRequest(event);
       }
       applyFilters();
     }
 
-    setStatus("connected", true);
+    setStatus(true);
   } catch {
     setStatus("disconnected", false);
   }
@@ -233,20 +240,11 @@ function selectRequest(id: string): void {
     if (authTab) authTab.style.display = hasBearerToken(selectedRequest) ? "" : "none";
     const actionTab = document.getElementById("actionTab") as HTMLElement;
     if (actionTab) actionTab.style.display = selectedRequest.source === "action" ? "" : "none";
-    if (activeTab === "action" && selectedRequest.source !== "action") {
-      activeTab = "headers";
-      document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
-      document.querySelector('.detail-tabs button[data-tab="headers"]')?.classList.add("active");
-    }
-    if (activeTab === "auth" && !hasBearerToken(selectedRequest)) {
-      activeTab = "headers";
-      document.querySelectorAll(".detail-tabs button").forEach((b) => b.classList.remove("active"));
-      document.querySelector('.detail-tabs button[data-tab="headers"]')?.classList.add("active");
-    }
+    if (activeTab === "action" && selectedRequest.source !== "action") resetToHeadersTab();
+    if (activeTab === "auth" && !hasBearerToken(selectedRequest)) resetToHeadersTab();
     renderDetail();
   } else {
-    panel.classList.remove("open");
-    document.getElementById("resizeHandle")!.classList.remove("visible");
+    closeDetail();
   }
 
   document.querySelectorAll("tr.row").forEach((row) => {
@@ -299,7 +297,12 @@ function renderDetail(): void {
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.requestBody);
-      document.getElementById("copyBodyBtn")!.addEventListener("click", () => copyToClipboard(req.requestBody));
+      document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
+        if (!req.requestBody) return;
+        let formatted = req.requestBody;
+        try { formatted = JSON.stringify(JSON.parse(formatted), null, 2); } catch { /* not json */ }
+        copyTextToClipboard(formatted, document.getElementById("copyBodyBtn")!, "📋 Copy");
+      });
       break;
 
     case "response":
@@ -309,7 +312,12 @@ function renderDetail(): void {
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.responseBody);
-      document.getElementById("copyBodyBtn")!.addEventListener("click", () => copyToClipboard(req.responseBody));
+      document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
+        if (!req.responseBody) return;
+        let formatted = req.responseBody;
+        try { formatted = JSON.stringify(JSON.parse(formatted), null, 2); } catch { /* not json */ }
+        copyTextToClipboard(formatted, document.getElementById("copyBodyBtn")!, "📋 Copy");
+      });
       break;
 
     case "auth": {
@@ -445,27 +453,6 @@ function getBearerToken(req: NExtEvent): string | null {
   return null;
 }
 
-function copyToClipboard(text: string | null): void {
-  if (!text) return;
-  const btn = document.getElementById("copyBodyBtn")!;
-  try {
-    let formatted = text;
-    try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch { /* not json */ }
-    const textarea = document.createElement("textarea");
-    textarea.value = formatted;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
-    btn.textContent = "✅ Copied!";
-  } catch {
-    btn.textContent = "❌ Failed";
-  }
-  setTimeout(() => { btn.textContent = "📋 Copy"; }, 1500);
-}
-
 function renderBodyInto(elementId: string, body: string | null): void {
   const container = document.getElementById(elementId)!;
   if (!body) {
@@ -489,9 +476,7 @@ async function clearRequests(): Promise<void> {
     }
   } catch { /* ignore */ }
   allRequests = [];
-  selectedRequest = null;
-  document.getElementById("detailPanel")!.classList.remove("open");
-  document.getElementById("resizeHandle")!.classList.remove("visible");
+  closeDetail();
   applyFilters();
 }
 
@@ -562,10 +547,12 @@ document.getElementById("detailCloseBtn")!.addEventListener("click", closeDetail
   const handle = document.getElementById("resizeHandle")!;
   const panel = document.getElementById("detailPanel")!;
   let dragging = false;
+  let containerRight = 0;
 
   handle.addEventListener("mousedown", (e) => {
     e.preventDefault();
     dragging = true;
+    containerRight = document.querySelector(".content")!.getBoundingClientRect().right;
     handle.classList.add("active");
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
@@ -573,7 +560,6 @@ document.getElementById("detailCloseBtn")!.addEventListener("click", closeDetail
 
   document.addEventListener("mousemove", (e) => {
     if (!dragging) return;
-    const containerRight = document.querySelector(".content")!.getBoundingClientRect().right;
     const newWidth = Math.max(200, Math.min(containerRight - e.clientX, window.innerWidth - 200));
     panel.style.width = newWidth + "px";
   });
