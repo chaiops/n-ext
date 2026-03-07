@@ -1,30 +1,38 @@
-# n-ext
+# 🔍 n-ext
 
 Next.js Server DevTools — capture and inspect server-side network requests (fetch & http) from your Next.js app in a Chrome DevTools panel.
 
-## Why
+> ⚠️ **Development only.** n-ext is designed exclusively for local development. It does not ship to production, adds zero runtime overhead to production builds, and refuses to start if `NODE_ENV=production`. Think of it like React DevTools — a transparent layer that exists only while you're building.
 
-Next.js server components, server actions, and route handlers make API calls that are invisible to the browser's Network tab. You're left with a few options, none of them great:
+![n-ext DevTools panel showing captured server-side requests](docs/screenshot.png)
 
-- **Node.js debugger** — works, but now you're juggling two separate debugger windows (browser + Node), and it lacks the filtering/visualization you get from Chrome DevTools
-- **`console.log`** — adds visibility, but you have to litter your code with logging statements and clean them up later
-- **`process.env.NODE_ENV` / `isDevelopment` guards** — same problem, you're changing application code to get dev-only observability
+<p align="center">
+  <img src="docs/screenshot-01.png" width="49%" alt="n-ext request list view" />
+  <img src="docs/screenshot-02.png" width="49%" alt="n-ext request detail view" />
+</p>
+
+## 💡 Why
+
+Next.js server components, server actions, and route handlers make API calls that are **invisible** to the browser's Network tab. You're left with a few options, none of them great:
+
+| Approach | Problem |
+|---|---|
+| **Node.js debugger** | You're juggling two separate debugger windows (browser + Node) and it lacks the filtering/visualization of Chrome DevTools |
+| **`console.log`** | You have to litter your code with logging statements and clean them up later |
+| **`process.env.NODE_ENV` / `isDevelopment` guards** | You're changing application code just to get dev-only observability |
+
+All of these share the same fundamental issue: **they require you to modify your application code** to see what your server is doing.
 
 What we actually want is a **transparent dev-only layer** — something that captures every server-side fetch and http call automatically, without touching your application code, and shows it right in Chrome DevTools. Like React DevTools, but for your server's network traffic.
 
-`n-ext` does exactly that. Replace `next dev` with `n-ext dev` and you get a Chrome DevTools panel showing every outgoing request your server makes — method, URL, status, headers, body, timing — with zero code changes and zero production impact.
+`n-ext` does exactly that. Replace `next dev` with `n-ext dev` and you get a Chrome DevTools panel showing every outgoing request your server makes — method, URL, status, headers, body, timing — with **zero code changes** and **zero production impact**.
 
-## How it works
-
-`n-ext` wraps `next dev` and injects runtime interceptors via `NODE_OPTIONS=--require`. It patches `globalThis.fetch`, `http.request`, and `https.request` to capture all outgoing server-side requests. Captured events are exposed on `http://localhost:3894/see` for the Chrome extension to consume.
-
-## Architecture
+## 🏗️ Architecture
 
 ```mermaid
 ---
 config:
   layout: elk
-  theme: redux
 ---
 flowchart TD
     subgraph Your Next.js App
@@ -57,7 +65,18 @@ flowchart TD
 4. **`/see` server** (port 3894) serves events as JSON — the Chrome extension polls `GET /see?cursor=N` every 500ms to get only new events
 5. **Chrome DevTools panel** renders a network-inspector UI with filtering, detail views, and timing visualization
 
-## Add to an existing Next.js app
+## ⚙️ How it works
+
+`n-ext` wraps `next dev` and injects runtime interceptors via `NODE_OPTIONS=--require`. It patches `globalThis.fetch`, `http.request`, and `https.request` to capture all outgoing server-side requests. Captured events are exposed on `http://localhost:3894/see` for the Chrome extension to consume.
+
+**Key design decisions:**
+
+- 🚫 **No production code** — the CLI exits immediately if `NODE_ENV=production`
+- 🧩 **No app changes needed** — interception happens at the runtime level via `--require`
+- 🔒 **Listens on `127.0.0.1` only** — never exposed to the network
+- 🪶 **Minimal footprint** — a single `--require` flag, no middleware, no config files
+
+## 🚀 Getting started
 
 ### 1. Install
 
@@ -139,7 +158,7 @@ You should see:
 
 Open your app in Chrome, open DevTools, and switch to the **n-ext** tab to see captured server-side requests.
 
-## Verify it works
+## ✅ Verify it works
 
 ```bash
 # Check the event stream directly
@@ -168,7 +187,7 @@ Response format:
 }
 ```
 
-## Monorepo structure
+## 📁 Monorepo structure
 
 ```
 packages/
@@ -178,10 +197,68 @@ apps/
   demo/           Example Next.js app
 ```
 
-## Development
+## 🛠️ Development
 
 ```bash
 pnpm install
 pnpm build                # build n-ext package
 cd apps/demo && pnpm dev  # run demo with n-ext
 ```
+
+### Code style
+
+- **EditorConfig** — consistent indentation and encoding across editors (see `.editorconfig`)
+- **Prettier** — auto-format with `pnpm format`; config in `.prettierrc`
+- **ESLint** — lint with `pnpm lint`
+- **TypeScript** — strict mode enabled in `packages/n-ext`
+
+### Commit conventions
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+feat(interceptor): add websocket support
+fix(store): prevent cursor overflow on large event counts
+docs(readme): add architecture diagram
+chore(deps): bump tsup to v9
+refactor(panel): extract header rendering logic
+```
+
+**Types:** `feat` · `fix` · `docs` · `chore` · `refactor` · `test` · `perf` · `ci`
+
+**Scopes (optional):** `cli` · `interceptor` · `store` · `server` · `panel` · `extension` · `deps`
+
+### Best practices
+
+- Keep changes focused — one concern per commit
+- Run `pnpm build` before committing to make sure everything compiles
+- Test with the demo app (`apps/demo`) before submitting changes
+- Don't commit `dist/` — it's gitignored and built in CI
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repo and clone your fork
+2. **Install** dependencies: `pnpm install`
+3. **Create a branch** from `main`:
+   ```bash
+   git checkout -b feat/my-feature
+   ```
+4. **Make your changes** — follow the code style and commit conventions above
+5. **Build & test** locally:
+   ```bash
+   pnpm build
+   cd apps/demo && pnpm dev
+   # Open Chrome DevTools → n-ext tab and verify your changes
+   ```
+6. **Push** and open a pull request against `main`
+
+### PR guidelines
+
+- Keep PRs small and focused
+- Describe *what* changed and *why* in the PR description
+- Link any related issues
+- Make sure the build passes (`pnpm build`)
