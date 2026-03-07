@@ -1,0 +1,12 @@
+{
+  "name": "@chaiops/n-ext-extension",
+  "version": "0.0.2-alpha",
+  "private": true,
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "^6"
+  }
+}

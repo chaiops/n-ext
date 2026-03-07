@@ -1,3 +1,9 @@
+import renderjson from "./renderjson.js";
+
+renderjson.set_show_to_level(1);
+renderjson.set_icons("▶ ", "▼ ");
+renderjson.set_sort_objects(true);
+
 let allRequests = [];
 let selectedRequest = null;
 let activeTab = "headers";
@@ -10,8 +16,14 @@ const CLEAR_URL = "http://127.0.0.1:3894/clear";
 
 function setStatus(text, connected) {
   const el = document.getElementById("statusIndicator");
-  el.textContent = text;
+  el.textContent = connected ? "🟢 Connected" : "🔴 Disconnected";
   el.className = "status " + (connected ? "connected" : "disconnected");
+}
+
+function closeDetail() {
+  selectedRequest = null;
+  document.getElementById("detailPanel").classList.remove("open");
+  document.querySelectorAll("tr.row").forEach((row) => row.classList.remove("selected"));
 }
 
 async function poll() {
@@ -149,16 +161,18 @@ function renderDetail() {
       content.innerHTML = `
         <div class="detail-section">
           <h3>Request Body</h3>
-          <div class="body-preview">${req.requestBody ? formatBody(req.requestBody) : "(empty)"}</div>
+          <div class="body-preview" id="bodyPreview"></div>
         </div>`;
+      renderBodyInto("bodyPreview", req.requestBody);
       break;
 
     case "response":
       content.innerHTML = `
         <div class="detail-section">
           <h3>Response Body ${req.responseSize != null ? "(" + formatSize(req.responseSize) + ")" : ""}</h3>
-          <div class="body-preview">${req.responseBody ? formatBody(req.responseBody) : "(empty)"}</div>
+          <div class="body-preview" id="bodyPreview"></div>
         </div>`;
+      renderBodyInto("bodyPreview", req.responseBody);
       break;
 
     case "timing":
@@ -182,12 +196,17 @@ function renderHeaders(headers) {
     .join("");
 }
 
-function formatBody(body) {
+function renderBodyInto(elementId, body) {
+  const container = document.getElementById(elementId);
+  if (!body) {
+    container.textContent = "(empty)";
+    return;
+  }
   try {
     const parsed = JSON.parse(body);
-    return escapeHtml(JSON.stringify(parsed, null, 2));
+    container.appendChild(renderjson(parsed));
   } catch {
-    return escapeHtml(body);
+    container.textContent = body;
   }
 }
 
@@ -264,5 +283,7 @@ document.getElementById("detailTabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-tab]");
   if (btn) showTab(btn.dataset.tab, btn);
 });
+
+document.getElementById("detailCloseBtn").addEventListener("click", closeDetail);
 
 startPolling();

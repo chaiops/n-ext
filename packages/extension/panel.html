@@ -184,6 +184,59 @@
       border-bottom-color: #007acc;
     }
 
+    .detail-tabs .close-btn {
+      margin-left: auto;
+      border-bottom: none;
+      color: #888;
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+
+    .detail-tabs .close-btn:hover { color: #d4d4d4; }
+
+    .detail-tabs .close-btn {
+      margin-left: auto;
+      border-bottom: none;
+      color: #888;
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+
+    .detail-tabs .close-btn:hover { color: #d4d4d4; }
+
+    .json-tree { font-size: 11px; line-height: 1.6; }
+
+    .json-tree .jt-row {
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .json-tree .jt-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: inline-block;
+      width: 12px;
+      font-size: 8px;
+      color: #888;
+      text-align: center;
+    }
+
+    .json-tree .jt-children {
+      display: none;
+      padding-left: 16px;
+    }
+
+    .json-tree .jt-row.open > .jt-children { display: block; }
+    .json-tree .jt-row.open > .jt-toggle { transform: rotate(90deg); }
+
+    .json-tree .jt-key { color: #9cdcfe; }
+    .json-tree .jt-string { color: #ce9178; }
+    .json-tree .jt-number { color: #b5cea8; }
+    .json-tree .jt-boolean { color: #569cd6; }
+    .json-tree .jt-null { color: #569cd6; }
+    .json-tree .jt-bracket { color: #888; }
+    .json-tree .jt-ellipsis { color: #666; }
+
     .detail-content {
       padding: 8px;
     }
@@ -223,10 +276,20 @@
       border-radius: 3px;
       white-space: pre-wrap;
       word-break: break-all;
-      max-height: 400px;
       overflow: auto;
       color: #d4d4d4;
     }
+
+    .body-preview .renderjson { font-family: inherit; font-size: 11px; }
+    .body-preview .renderjson a { color: #888; text-decoration: none; cursor: pointer; }
+    .body-preview .renderjson a:hover { text-decoration: underline; }
+    .body-preview .renderjson .disclosure { color: #888; font-size: 10px; }
+    .body-preview .renderjson .string { color: #ce9178; }
+    .body-preview .renderjson .number { color: #b5cea8; }
+    .body-preview .renderjson .boolean { color: #569cd6; }
+    .body-preview .renderjson .key { color: #9cdcfe; }
+    .body-preview .renderjson .keyword { color: #569cd6; }
+    .body-preview .renderjson .syntax { color: #888; }
 
     .empty-state {
       display: flex;
@@ -283,11 +346,12 @@
         <button data-tab="request">Request</button>
         <button data-tab="response">Response</button>
         <button data-tab="timing">Timing</button>
+        <button class="close-btn" id="detailCloseBtn" title="Close">✕</button>
       </div>
       <div class="detail-content" id="detailContent"></div>
     </div>
   </div>
 
-  <script src="panel.js"></script>
+  <script type="module" src="src/panel.js"></script>
 </body>
 </html>

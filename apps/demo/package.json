@@ -16,7 +16,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "n-ext": "workspace:*",
+    "@chaiops/n-ext": "workspace:*",
     "typescript": "^5"
   }
 }

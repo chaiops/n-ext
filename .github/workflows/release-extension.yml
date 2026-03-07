@@ -14,15 +14,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Get version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/ext-v}" >> "$GITHUB_OUTPUT"
 
+      - name: Build extension
+        run: pnpm --filter @chaiops/n-ext-extension build
+
       - name: Package extension
         run: |
-          cd packages/extension
-          zip -r "../../n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip" \
-            manifest.json devtools.html devtools.js panel.html panel.js icons/
+          cd packages/extension/dist
+          zip -r "../../../n-ext-chrome-v${{ steps.version.outputs.VERSION }}.zip" .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
