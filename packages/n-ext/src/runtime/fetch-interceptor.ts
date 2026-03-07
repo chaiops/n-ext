@@ -1,8 +1,6 @@
 import { addEvent } from "./event-store";
 import type { NExtEvent } from "../shared/event-types";
-
-const SEE_HOST = "127.0.0.1:3894";
-const MAX_BODY = 64 * 1024;
+import { SEE_HOST, SEE_PORT, MAX_BODY } from "../shared/constants";
 
 function headersToRecord(headers: HeadersInit | undefined): Record<string, string> {
   const result: Record<string, string> = {};
@@ -62,7 +60,7 @@ export function installFetchInterceptor() {
   ): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
-    if (url.includes(SEE_HOST)) return originalFetch(input, init);
+    if (url.includes(`${SEE_HOST}:${SEE_PORT}`)) return originalFetch(input, init);
 
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const requestHeaders = headersToRecord(
@@ -87,8 +85,7 @@ export function installFetchInterceptor() {
     }
 
     const duration = performance.now() - start;
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((v, k) => { responseHeaders[k] = v; });
+    const responseHeaders = headersToRecord(response.headers);
 
     const cloned = response.clone();
     readBody(cloned.body).then((responseBody) => {

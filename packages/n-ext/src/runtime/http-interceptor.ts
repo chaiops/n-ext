@@ -1,12 +1,9 @@
 import { addEvent } from "./event-store";
+import { SEE_HOST, SEE_PORT, MAX_BODY } from "../shared/constants";
 
 // Use require to get the mutable CJS module objects (ESM imports give frozen namespace)
 const http = require("node:http") as typeof import("node:http");
 const https = require("node:https") as typeof import("node:https");
-
-const SEE_HOST = "127.0.0.1";
-const SEE_PORT = 3894;
-const MAX_BODY = 64 * 1024;
 
 function isSelfRequest(options: http.RequestOptions | string | URL): boolean {
   if (typeof options === "string" || options instanceof URL) {
@@ -63,16 +60,16 @@ function patchModule(mod: typeof http | typeof https, protocol: string) {
     const id = crypto.randomUUID();
     const start = performance.now();
     const requestChunks: Buffer[] = [];
+    let requestSize = 0;
 
     const req = originalRequest.apply(mod, args as any) as http.ClientRequest;
 
     const origWrite = req.write.bind(req);
     req.write = function (chunk: any, ...rest: any[]): boolean {
-      if (chunk) {
+      if (chunk && requestSize < MAX_BODY) {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        if (requestChunks.reduce((s, b) => s + b.length, 0) < MAX_BODY) {
-          requestChunks.push(buf);
-        }
+        requestChunks.push(buf);
+        requestSize += buf.length;
       }
       return origWrite(chunk, ...rest);
     } as any;
@@ -89,10 +86,7 @@ function patchModule(mod: typeof http | typeof https, protocol: string) {
       });
 
       res.on("end", () => {
-        const responseHeaders: Record<string, string> = {};
-        for (const [k, v] of Object.entries(res.headers)) {
-          if (v != null) responseHeaders[k] = Array.isArray(v) ? v.join(", ") : v;
-        }
+        const responseHeaders = headersToRecord(res.headers as http.OutgoingHttpHeaders);
 
         const responseBody = Buffer.concat(responseChunks).toString("utf-8").slice(0, MAX_BODY);
         const requestBody = requestChunks.length > 0

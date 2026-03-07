@@ -6,6 +6,7 @@ let cursor = 0;
 let pollTimer = null;
 
 const SEE_URL = "http://127.0.0.1:3894/see";
+const CLEAR_URL = "http://127.0.0.1:3894/clear";
 
 function setStatus(text, connected) {
   const el = document.getElementById("statusIndicator");
@@ -192,7 +193,7 @@ function formatBody(body) {
 
 async function clearRequests() {
   try {
-    const res = await fetch(SEE_URL.replace("/see", "/clear"), { method: "POST" });
+    const res = await fetch(CLEAR_URL, { method: "POST" });
     if (res.ok) {
       const data = await res.json();
       cursor = data.cursor;
@@ -239,10 +240,10 @@ function shortenUrl(url) {
   }
 }
 
+const _escapeEl = document.createElement("div");
 function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  _escapeEl.textContent = str;
+  return _escapeEl.innerHTML;
 }
 
 // Event delegation

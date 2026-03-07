@@ -1,8 +1,6 @@
 const http = require("node:http") as typeof import("node:http");
 import { addEvent, getEvents, clearEvents } from "../runtime/event-store";
-
-export const HOST = "127.0.0.1";
-export const PORT = 3894;
+import { SEE_HOST as HOST, SEE_PORT as PORT } from "../shared/constants";
 
 export function startSeeServer(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -31,7 +29,13 @@ export function startSeeServer(): Promise<boolean> {
 
       if (url.pathname === "/ingest" && req.method === "POST") {
         let body = "";
-        req.on("data", (chunk: Buffer) => { body += chunk; });
+        let bodySize = 0;
+        const MAX_INGEST = 256 * 1024;
+        req.on("data", (chunk: Buffer) => {
+          bodySize += chunk.length;
+          if (bodySize > MAX_INGEST) { req.destroy(); return; }
+          body += chunk;
+        });
         req.on("end", () => {
           try {
             const event = JSON.parse(body);
