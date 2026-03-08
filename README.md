@@ -80,6 +80,7 @@ Open your app in Chrome, open DevTools, and switch to the **🍵 NExt** tab to s
 | **Automatic interception** | Captures `fetch`, `http.request`, and `https.request` — no code changes needed |
 | **Chrome DevTools panel** | Dedicated **🍵 NExt** tab with request list, headers, body preview, and timing |
 | **JSON tree preview** | Collapsible JSON viewer for request and response bodies |
+| **Smart search** | Single search box searches across URL, request body, response body, and headers — with match highlighting and per-tab match counts |
 | **Method & URL filtering** | Filter by HTTP method (GET, POST, PUT, DELETE) and URL pattern |
 | **Request details** | View request/response headers, bodies, status codes, duration, and size |
 | **Copy to clipboard** | One-click copy for request and response bodies (auto-formatted JSON) |
