@@ -8,8 +8,7 @@ Next.js Server DevTools — capture and inspect server-side network requests (fe
 > ⚠️ **Development only.** n-ext is designed exclusively for local development. It does not ship to production, adds zero runtime overhead to production builds, and refuses to start if `NODE_ENV=production`. Think of it like React DevTools — a transparent layer that exists only while you're building.
 
 <p align="center">
-  <img src="docs/screenshot-01.png" width="49%" alt="n-ext request list view" />
-  <img src="docs/screenshot-02.png" width="49%" alt="n-ext request detail view" />
+  <img src="docs/screenshot-03.png" width="100%" alt="n-ext request list view" />
 </p>
 
 ## 🚀 Getting started
