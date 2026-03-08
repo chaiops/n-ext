@@ -684,30 +684,44 @@ document.getElementById("themeSwitcher")!.addEventListener("click", (e) => {
   });
 })();
 
+function wrapMatchesInText(textNode: Text, term: string): DocumentFragment {
+  const text = textNode.textContent || "";
+  const frag = document.createDocumentFragment();
+  let searchFrom = 0;
+
+  while (true) {
+    const matchStart = text.toLowerCase().indexOf(term, searchFrom);
+    if (matchStart === -1) break;
+
+    if (matchStart > searchFrom)
+      frag.appendChild(document.createTextNode(text.slice(searchFrom, matchStart)));
+
+    const mark = document.createElement("mark");
+    mark.className = "search-hit";
+    mark.textContent = text.slice(matchStart, matchStart + term.length);
+    frag.appendChild(mark);
+
+    searchFrom = matchStart + term.length;
+  }
+
+  if (searchFrom < text.length)
+    frag.appendChild(document.createTextNode(text.slice(searchFrom)));
+
+  return frag;
+}
+
 function highlightTextInElement(root: Element, term: string): void {
   if (!term) return;
+
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
   let node: Node | null;
   while ((node = walker.nextNode())) textNodes.push(node as Text);
+
   for (const textNode of textNodes) {
-    const text = textNode.textContent || "";
-    const lowerText = text.toLowerCase();
-    let idx = lowerText.indexOf(term);
-    if (idx === -1) continue;
-    const frag = document.createDocumentFragment();
-    let last = 0;
-    while (idx !== -1) {
-      if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
-      const mark = document.createElement("mark");
-      mark.className = "search-hit";
-      mark.textContent = text.slice(idx, idx + term.length);
-      frag.appendChild(mark);
-      last = idx + term.length;
-      idx = lowerText.indexOf(term, last);
-    }
-    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
-    textNode.parentNode!.replaceChild(frag, textNode);
+    const hasMatch = textNode.textContent?.toLowerCase().includes(term);
+    if (!hasMatch) continue;
+    textNode.parentNode!.replaceChild(wrapMatchesInText(textNode, term), textNode);
   }
 }
 
