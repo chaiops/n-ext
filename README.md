@@ -52,7 +52,7 @@ All arguments are forwarded to `next dev`:
 
 ### 3. Install the Chrome extension
 
-1. Download [`n-ext-chrome-v0.0.3-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.3-alpha/n-ext-chrome-v0.0.3-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
+1. Download [`n-ext-chrome-v0.0.4-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.4-alpha/n-ext-chrome-v0.0.4-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
 2. Unzip the downloaded file
 3. Open `chrome://extensions` and enable **Developer mode**
 4. Click **Load unpacked** and select the unzipped folder
