@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  "🍵 NExt",
+  "☕ NExt",
   null,
   "panel.html"
 );

@@ -39,6 +39,7 @@ const CLEAR_URL = "http://127.0.0.1:3894/clear";
 function addRequest(event: NExtEvent): void {
   allRequests.unshift(event);
   if (allRequests.length > MAX_PANEL_EVENTS) allRequests.pop();
+  updateRequestCount();
 }
 
 function getActionName(url: string): string {
@@ -154,8 +155,13 @@ if (typeof chrome !== "undefined" && chrome.devtools?.network) {
 
 function setStatus(connected: boolean): void {
   const el = document.getElementById("statusIndicator")!;
-  el.textContent = connected ? "🟢 Connected" : "🔴 Disconnected";
+  el.innerHTML = `<span class="status-dot"></span> ${connected ? "Connected" : "Disconnected"}`;
   el.className = "status " + (connected ? "connected" : "disconnected");
+}
+
+function updateRequestCount(): void {
+  const el = document.getElementById("requestCount")!;
+  el.textContent = allRequests.length > 0 ? `${allRequests.length} request${allRequests.length !== 1 ? "s" : ""}` : "";
 }
 
 function resetToHeadersTab(): void {
@@ -199,7 +205,7 @@ async function poll(): Promise<void> {
 
     setStatus(true);
   } catch {
-    setStatus("disconnected", false);
+    setStatus(false);
   }
 }
 
@@ -247,7 +253,7 @@ function renderRequests(requests: NExtEvent[]): void {
       const duration = req.duration != null ? Math.round(req.duration) + "ms" : "-";
       const time = req.timestamp ? formatTime(req.timestamp) : "-";
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
-      const source = req.source ? `<span class="source-badge${req.source === "action" ? " action" : ""}">${req.source}</span>` : "";
+      const source = req.source ? `<span class="source-badge ${req.source === "action" ? "action" : req.source === "fetch" || req.source === "http" ? "fetch" : ""}">${req.source}</span>` : "";
       const mwBadge = req.middleware ? `<span class="source-badge middleware">mw</span>` : "";
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
@@ -514,6 +520,7 @@ async function clearRequests(): Promise<void> {
   } catch { /* ignore */ }
   allRequests = [];
   closeDetail();
+  updateRequestCount();
   applyFilters();
 }
 
@@ -578,6 +585,28 @@ document.getElementById("detailTabs")!.addEventListener("click", (e) => {
 });
 
 document.getElementById("detailCloseBtn")!.addEventListener("click", closeDetail);
+
+// Theme switching
+const THEME_STORAGE_KEY = "next-devtools-theme";
+
+function setTheme(theme: string): void {
+  document.body.setAttribute("data-theme", theme);
+  document.querySelectorAll("#themeSwitcher button").forEach((b) => {
+    b.classList.toggle("active", (b as HTMLElement).dataset.theme === theme);
+  });
+  try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* ignore */ }
+}
+
+// Restore saved theme
+try {
+  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  if (saved) setTheme(saved);
+} catch { /* ignore */ }
+
+document.getElementById("themeSwitcher")!.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement).closest("button[data-theme]") as HTMLElement | null;
+  if (btn?.dataset.theme) setTheme(btn.dataset.theme);
+});
 
 // Resize handle drag logic
 (() => {
