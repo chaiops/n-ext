@@ -359,6 +359,13 @@
     }
     .header-value { color: var(--text-secondary); word-break: break-all; }
 
+    mark.search-hit {
+      background: var(--color-warning);
+      color: #000;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
     /* ── Body preview ── */
     .body-preview {
       background: var(--bg-secondary);
@@ -454,7 +461,7 @@
       <button data-method="DELETE">DEL</button>
       <button data-method="ACTION">ACTION</button>
     </div>
-    <input id="filterInput" type="text" placeholder="Filter by URL...">
+    <input id="filterInput" type="text" placeholder="Search URL, request & response...">
     <div class="theme-switcher" id="themeSwitcher">
       <button data-theme="midnight" class="active" title="Midnight"></button>
       <button data-theme="github-dark" title="GitHub Dark"></button>

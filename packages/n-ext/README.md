@@ -8,8 +8,8 @@ Next.js Server DevTools — capture and inspect server-side network requests (fe
 > ⚠️ **Development only.** n-ext is designed exclusively for local development. It does not ship to production, adds zero runtime overhead to production builds, and refuses to start if `NODE_ENV=production`. Think of it like React DevTools — a transparent layer that exists only while you're building.
 
 <p align="center">
-  <img src="docs/screenshot-01.png" width="49%" alt="n-ext request list view" />
-  <img src="docs/screenshot-02.png" width="49%" alt="n-ext request detail view" />
+  <img src="docs/screenshot-04.png" width="80%" alt="n-ext request list view" />
+  <img src="docs/screenshot-05.png" width="80%" alt="n-ext detail panel" />
 </p>
 
 ## 🚀 Getting started
@@ -52,7 +52,7 @@ All arguments are forwarded to `next dev`:
 
 ### 3. Install the Chrome extension
 
-1. Download [`n-ext-chrome-v0.0.3-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.3-alpha/n-ext-chrome-v0.0.3-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
+1. Download [`n-ext-chrome-v0.0.4-alpha.zip`](https://github.com/chaiops/n-ext/releases/download/ext-v0.0.4-alpha/n-ext-chrome-v0.0.4-alpha.zip) or grab the latest from [GitHub Releases](https://github.com/chaiops/n-ext/releases/latest)
 2. Unzip the downloaded file
 3. Open `chrome://extensions` and enable **Developer mode**
 4. Click **Load unpacked** and select the unzipped folder

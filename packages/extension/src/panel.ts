@@ -225,7 +225,25 @@ function applyFilters(): void {
   let filtered = allRequests;
 
   if (filter) {
-    filtered = filtered.filter((r) => r.url && r.url.toLowerCase().includes(filter));
+    // Priority 1: URL match
+    const urlMatched = filtered.filter((r) => r.url && r.url.toLowerCase().includes(filter));
+    if (urlMatched.length > 0) {
+      filtered = urlMatched;
+    } else {
+      // Priority 2: request body, Priority 3: response body, Priority 4: headers
+      const headersMatch = (r: NExtEvent) => {
+        const all = { ...r.requestHeaders, ...r.responseHeaders, ...(r.middlewareHeaders || {}) };
+        return Object.entries(all).some(
+          ([k, v]) => k.toLowerCase().includes(filter) || String(v).toLowerCase().includes(filter)
+        );
+      };
+      filtered = filtered.filter(
+        (r) =>
+          (r.requestBody && r.requestBody.toLowerCase().includes(filter)) ||
+          (r.responseBody && r.responseBody.toLowerCase().includes(filter)) ||
+          headersMatch(r)
+      );
+    }
   }
 
   if (activeMethod === "ACTION") {
@@ -235,6 +253,9 @@ function applyFilters(): void {
   }
 
   renderRequests(filtered);
+
+  // Re-render detail panel to apply highlights
+  if (selectedRequest) renderDetail();
 }
 
 function renderRequests(requests: NExtEvent[]): void {
@@ -336,6 +357,7 @@ function renderDetail(): void {
         const btn = document.getElementById("copyCurlBtn")!;
         copyTextToClipboard(toCurl(req), btn, "⚙️ Copy as cURL");
       });
+      highlightBodyMatches("detailContent");
       break;
 
     case "request":
@@ -345,6 +367,7 @@ function renderDetail(): void {
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.requestBody);
+      highlightBodyMatches("bodyPreview");
       document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
         if (!req.requestBody) return;
         let formatted = req.requestBody;
@@ -360,6 +383,7 @@ function renderDetail(): void {
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
       renderBodyInto("bodyPreview", req.responseBody);
+      highlightBodyMatches("bodyPreview");
       document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
         if (!req.responseBody) return;
         let formatted = req.responseBody;
@@ -509,7 +533,10 @@ function renderBodyInto(elementId: string, body: string | null): void {
   }
   try {
     const parsed = JSON.parse(body);
+    const term = (document.getElementById("filterInput") as HTMLInputElement).value;
+    if (term) renderjson.set_show_to_level("all");
     container.appendChild(renderjson(parsed));
+    if (term) renderjson.set_show_to_level(1);
   } catch {
     container.textContent = body;
   }
@@ -643,5 +670,36 @@ document.getElementById("themeSwitcher")!.addEventListener("click", (e) => {
     document.body.style.userSelect = "";
   });
 })();
+
+function highlightBodyMatches(previewId: string): void {
+  const term = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
+  if (!term) return;
+  const preview = document.getElementById(previewId)!;
+  const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) textNodes.push(node as Text);
+  for (const textNode of textNodes) {
+    const text = textNode.textContent || "";
+    const lowerText = text.toLowerCase();
+    let idx = lowerText.indexOf(term);
+    if (idx === -1) continue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    while (idx !== -1) {
+      if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
+      const mark = document.createElement("mark");
+      mark.className = "search-hit";
+      mark.textContent = text.slice(idx, idx + term.length);
+      frag.appendChild(mark);
+      last = idx + term.length;
+      idx = lowerText.indexOf(term, last);
+    }
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    textNode.parentNode!.replaceChild(frag, textNode);
+  }
+  // Scroll first match into view
+  preview.querySelector("mark.search-hit")?.scrollIntoView({ block: "nearest" });
+}
 
 startPolling();
