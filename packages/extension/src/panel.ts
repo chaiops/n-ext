@@ -220,6 +220,16 @@ function startPolling(): void {
   pollTimer = setInterval(poll, 500);
 }
 
+function headersContain(r: NExtEvent, term: string): boolean {
+  for (const headers of [r.requestHeaders, r.responseHeaders, r.middlewareHeaders]) {
+    if (!headers) continue;
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase().includes(term) || String(v).toLowerCase().includes(term)) return true;
+    }
+  }
+  return false;
+}
+
 function applyFilters(): void {
   const filter = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
   let filtered = allRequests;
@@ -231,17 +241,11 @@ function applyFilters(): void {
       filtered = urlMatched;
     } else {
       // Priority 2: request body, Priority 3: response body, Priority 4: headers
-      const headersMatch = (r: NExtEvent) => {
-        const all = { ...r.requestHeaders, ...r.responseHeaders, ...(r.middlewareHeaders || {}) };
-        return Object.entries(all).some(
-          ([k, v]) => k.toLowerCase().includes(filter) || String(v).toLowerCase().includes(filter)
-        );
-      };
       filtered = filtered.filter(
         (r) =>
           (r.requestBody && r.requestBody.toLowerCase().includes(filter)) ||
           (r.responseBody && r.responseBody.toLowerCase().includes(filter)) ||
-          headersMatch(r)
+          headersContain(r, filter)
       );
     }
   }
@@ -254,8 +258,8 @@ function applyFilters(): void {
 
   renderRequests(filtered);
 
-  // Re-render detail panel to apply highlights
-  if (selectedRequest) renderDetail();
+  // Re-render detail panel to apply/clear highlights only when searching
+  if (selectedRequest && filter) renderDetail();
 }
 
 function renderRequests(requests: NExtEvent[]): void {
@@ -328,6 +332,7 @@ function renderDetail(): void {
   if (!selectedRequest) return;
 
   const req = selectedRequest;
+  const filter = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
 
   switch (activeTab) {
     case "headers":
@@ -357,7 +362,7 @@ function renderDetail(): void {
         const btn = document.getElementById("copyCurlBtn")!;
         copyTextToClipboard(toCurl(req), btn, "⚙️ Copy as cURL");
       });
-      highlightBodyMatches("detailContent");
+      highlightHeaderValues(filter);
       break;
 
     case "request":
@@ -366,8 +371,8 @@ function renderDetail(): void {
           <div class="section-header"><h3>Request Body</h3><button class="copy-btn" id="copyBodyBtn" title="Copy to clipboard">📋 Copy</button></div>
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
-      renderBodyInto("bodyPreview", req.requestBody);
-      highlightBodyMatches("bodyPreview");
+      renderBodyInto("bodyPreview", req.requestBody, filter);
+      highlightBodyMatches("bodyPreview", filter);
       document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
         if (!req.requestBody) return;
         let formatted = req.requestBody;
@@ -382,8 +387,8 @@ function renderDetail(): void {
           <div class="section-header"><h3>Response Body ${req.responseSize != null ? "(" + formatSize(req.responseSize) + ")" : ""}</h3><button class="copy-btn" id="copyBodyBtn" title="Copy to clipboard">📋 Copy</button></div>
           <div class="body-preview" id="bodyPreview"></div>
         </div>`;
-      renderBodyInto("bodyPreview", req.responseBody);
-      highlightBodyMatches("bodyPreview");
+      renderBodyInto("bodyPreview", req.responseBody, filter);
+      highlightBodyMatches("bodyPreview", filter);
       document.getElementById("copyBodyBtn")!.addEventListener("click", () => {
         if (!req.responseBody) return;
         let formatted = req.responseBody;
@@ -433,10 +438,16 @@ function renderDetail(): void {
           <div class="body-preview" id="actionReturnValue"></div>
         </div>
 `;
-      renderBodyInto("actionFormData", req.requestBody);
+      renderBodyInto("actionFormData", req.requestBody, filter);
       const rvContainer = document.getElementById("actionReturnValue")!;
       if (resolved && typeof resolved === "object") {
-        rvContainer.appendChild(renderjson(resolved));
+        if (filter) renderjson.set_show_to_level("all");
+        try {
+          rvContainer.appendChild(renderjson(resolved));
+        } finally {
+          if (filter) renderjson.set_show_to_level(1);
+        }
+        highlightBodyMatches("actionReturnValue", filter);
       } else {
         rvContainer.textContent = "(no data)";
       }
@@ -525,7 +536,7 @@ function getBearerToken(req: NExtEvent): string | null {
   return null;
 }
 
-function renderBodyInto(elementId: string, body: string | null): void {
+function renderBodyInto(elementId: string, body: string | null, term = ""): void {
   const container = document.getElementById(elementId)!;
   if (!body) {
     container.textContent = "(empty)";
@@ -533,10 +544,12 @@ function renderBodyInto(elementId: string, body: string | null): void {
   }
   try {
     const parsed = JSON.parse(body);
-    const term = (document.getElementById("filterInput") as HTMLInputElement).value;
     if (term) renderjson.set_show_to_level("all");
-    container.appendChild(renderjson(parsed));
-    if (term) renderjson.set_show_to_level(1);
+    try {
+      container.appendChild(renderjson(parsed));
+    } finally {
+      if (term) renderjson.set_show_to_level(1);
+    }
   } catch {
     container.textContent = body;
   }
@@ -671,11 +684,9 @@ document.getElementById("themeSwitcher")!.addEventListener("click", (e) => {
   });
 })();
 
-function highlightBodyMatches(previewId: string): void {
-  const term = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
+function highlightTextInElement(root: Element, term: string): void {
   if (!term) return;
-  const preview = document.getElementById(previewId)!;
-  const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
   let node: Node | null;
   while ((node = walker.nextNode())) textNodes.push(node as Text);
@@ -698,8 +709,20 @@ function highlightBodyMatches(previewId: string): void {
     if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
     textNode.parentNode!.replaceChild(frag, textNode);
   }
-  // Scroll first match into view
+}
+
+function highlightBodyMatches(previewId: string, term: string): void {
+  if (!term) return;
+  const preview = document.getElementById(previewId)!;
+  highlightTextInElement(preview, term);
   preview.querySelector("mark.search-hit")?.scrollIntoView({ block: "nearest" });
+}
+
+function highlightHeaderValues(term: string): void {
+  if (!term) return;
+  const content = document.getElementById("detailContent")!;
+  content.querySelectorAll<HTMLElement>(".header-value").forEach((el) => highlightTextInElement(el, term));
+  content.querySelector("mark.search-hit")?.scrollIntoView({ block: "nearest" });
 }
 
 startPolling();
