@@ -220,6 +220,41 @@ function startPolling(): void {
   pollTimer = setInterval(poll, 500);
 }
 
+// Yields {text, isMatch} segments for a string split by term matches.
+// Single source of truth for the match-splitting algorithm.
+function* splitByTerm(text: string, term: string): Iterable<{ text: string; isMatch: boolean }> {
+  const lower = text.toLowerCase();
+  let searchFrom = 0;
+  while (true) {
+    const matchStart = lower.indexOf(term, searchFrom);
+    if (matchStart === -1) break;
+    if (matchStart > searchFrom) yield { text: text.slice(searchFrom, matchStart), isMatch: false };
+    yield { text: text.slice(matchStart, matchStart + term.length), isMatch: true };
+    searchFrom = matchStart + term.length;
+  }
+  if (searchFrom < text.length) yield { text: text.slice(searchFrom), isMatch: false };
+}
+
+function highlightInString(text: string, term: string): string {
+  if (!term) return escapeHtml(text);
+  let result = "";
+  for (const seg of splitByTerm(text, term))
+    result += seg.isMatch ? `<mark class="search-hit">${escapeHtml(seg.text)}</mark>` : escapeHtml(seg.text);
+  return result;
+}
+
+function countMatches(text: string | null, term: string): number {
+  if (!text || !term) return 0;
+  const lower = text.toLowerCase();
+  let count = 0;
+  let pos = lower.indexOf(term);
+  while (pos !== -1) {
+    count++;
+    pos = lower.indexOf(term, pos + term.length);
+  }
+  return count;
+}
+
 function headersContain(r: NExtEvent, term: string): boolean {
   for (const headers of [r.requestHeaders, r.responseHeaders, r.middlewareHeaders]) {
     if (!headers) continue;
@@ -256,13 +291,11 @@ function applyFilters(): void {
     filtered = filtered.filter((r) => r.method === activeMethod);
   }
 
-  renderRequests(filtered);
-
-  // Re-render detail panel to apply/clear highlights only when searching
-  if (selectedRequest && filter) renderDetail();
+  renderRequests(filtered, filter);
+  if (selectedRequest) renderDetail();
 }
 
-function renderRequests(requests: NExtEvent[]): void {
+function renderRequests(requests: NExtEvent[], filter: string): void {
   const tbody = document.getElementById("requestBody")!;
   const empty = document.getElementById("emptyState") as HTMLElement;
 
@@ -285,9 +318,19 @@ function renderRequests(requests: NExtEvent[]): void {
       const shortUrl = req.url ? shortenUrl(req.url) : "-";
       const source = req.source ? `<span class="source-badge ${req.source === "action" ? "action" : req.source === "fetch" || req.source === "http" ? "fetch" : ""}">${req.source}</span>` : "";
       const mwBadge = req.middleware ? `<span class="source-badge middleware">mw</span>` : "";
+
+      let matchBadge = "";
+      if (filter && !req.url?.toLowerCase().includes(filter)) {
+        const total = countMatches(req.requestBody, filter)
+          + countMatches(req.responseBody, filter)
+          + countHeaderMatches(req, filter);
+        if (total > 0) matchBadge = `<span class="tab-badge">${total}</span>`;
+      }
+
+      const displayUrl = filter ? highlightInString(shortUrl, filter) : escapeHtml(shortUrl);
       return `<tr class="row${selected}" data-id="${escapeHtml(req.id)}">
         <td class="${methodClass}">${req.method || "-"}</td>
-        <td title="${escapeHtml(req.url || "")}">${escapeHtml(shortUrl)} ${source}${mwBadge}</td>
+        <td title="${escapeHtml(req.url || "")}">${displayUrl} ${source}${mwBadge}${matchBadge}</td>
         <td class="${statusClass}">${req.error ? "ERR" : req.status || "-"}</td>
         <td>${duration}</td>
         <td>${size}</td>
@@ -333,6 +376,8 @@ function renderDetail(): void {
 
   const req = selectedRequest;
   const filter = (document.getElementById("filterInput") as HTMLInputElement).value.toLowerCase();
+
+  updateAllTabBadges(req, filter);
 
   switch (activeTab) {
     case "headers":
@@ -685,28 +730,17 @@ document.getElementById("themeSwitcher")!.addEventListener("click", (e) => {
 })();
 
 function wrapMatchesInText(textNode: Text, term: string): DocumentFragment {
-  const text = textNode.textContent || "";
   const frag = document.createDocumentFragment();
-  let searchFrom = 0;
-
-  while (true) {
-    const matchStart = text.toLowerCase().indexOf(term, searchFrom);
-    if (matchStart === -1) break;
-
-    if (matchStart > searchFrom)
-      frag.appendChild(document.createTextNode(text.slice(searchFrom, matchStart)));
-
-    const mark = document.createElement("mark");
-    mark.className = "search-hit";
-    mark.textContent = text.slice(matchStart, matchStart + term.length);
-    frag.appendChild(mark);
-
-    searchFrom = matchStart + term.length;
+  for (const seg of splitByTerm(textNode.textContent || "", term)) {
+    if (seg.isMatch) {
+      const mark = document.createElement("mark");
+      mark.className = "search-hit";
+      mark.textContent = seg.text;
+      frag.appendChild(mark);
+    } else {
+      frag.appendChild(document.createTextNode(seg.text));
+    }
   }
-
-  if (searchFrom < text.length)
-    frag.appendChild(document.createTextNode(text.slice(searchFrom)));
-
   return frag;
 }
 
@@ -725,6 +759,38 @@ function highlightTextInElement(root: Element, term: string): void {
   }
 }
 
+function updateTabBadge(tab: string, count: number): void {
+  const btn = document.querySelector<HTMLElement>(`.detail-tabs button[data-tab="${tab}"]`);
+  if (!btn) return;
+  btn.querySelector(".tab-badge")?.remove();
+  if (count > 0) {
+    const badge = document.createElement("span");
+    badge.className = "tab-badge";
+    badge.textContent = String(count);
+    btn.appendChild(badge);
+  }
+}
+
+function countHeaderMatches(req: NExtEvent, term: string): number {
+  let count = 0;
+  for (const headers of [req.requestHeaders, req.responseHeaders, req.middlewareHeaders]) {
+    if (!headers) continue;
+    for (const [k, v] of Object.entries(headers))
+      count += countMatches(k, term) + countMatches(String(v), term);
+  }
+  return count;
+}
+
+function updateAllTabBadges(req: NExtEvent, term: string): void {
+  if (!term) {
+    ["headers", "request", "response"].forEach((t) => updateTabBadge(t, 0));
+    return;
+  }
+  updateTabBadge("headers", countHeaderMatches(req, term));
+  updateTabBadge("request", countMatches(req.requestBody, term));
+  updateTabBadge("response", countMatches(req.responseBody, term));
+}
+
 function highlightBodyMatches(previewId: string, term: string): void {
   if (!term) return;
   const preview = document.getElementById(previewId)!;
@@ -735,7 +801,7 @@ function highlightBodyMatches(previewId: string, term: string): void {
 function highlightHeaderValues(term: string): void {
   if (!term) return;
   const content = document.getElementById("detailContent")!;
-  content.querySelectorAll<HTMLElement>(".header-value").forEach((el) => highlightTextInElement(el, term));
+  content.querySelectorAll<HTMLElement>(".header-name, .header-value").forEach((el) => highlightTextInElement(el, term));
   content.querySelector("mark.search-hit")?.scrollIntoView({ block: "nearest" });
 }
 
