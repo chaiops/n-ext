@@ -1,0 +1,114 @@
+[data-theme="midnight"], :root {
+  /* ── Background / surfaces ── */
+  --bg-page: radial-gradient(circle at 50% 0%, #162020 0%, #0c0c1b 50%, #111618 100%);
+  --bg-grid-color: rgba(255, 255, 255, 0.05);
+  --bg-grid-size: 30px;
+  --bg-noise-opacity: 0.03;
+  --bg-primary: rgba(10, 10, 12, 0.85);
+  --bg-secondary: rgba(20, 20, 28, 0.9);
+  --bg-tertiary: rgba(30, 30, 40, 0.9);
+  --bg-elevated: rgba(45, 45, 60, 0.95);
+  --bg-toolbar: rgba(16, 16, 24, 0.95);
+  --bg-detail: transparent;
+  --bg-surface-gradient: linear-gradient(180deg, var(--bg-tertiary), var(--bg-secondary));
+
+  /* ── Borders ── */
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-row: transparent;
+
+  /* ── Text ── */
+  --text-primary: #f0f6fc;
+  --text-secondary: #c9d1d9;
+  --text-tertiary: #e1e1e1;
+  --text-muted: #8b949e;
+  --text-placeholder: #484f58;
+
+  /* ── Accent ── */
+  --accent: #4ae168;
+  --accent-dark: #38c254;
+  --accent-secondary: #a371f7;
+  --accent-secondary-light: #d2a8ff;
+
+  /* ── Semantic ── */
+  --color-success: #3fb950;
+  --color-success-light: #56d364;
+  --color-warning: #d29922;
+  --color-orange: #db6d28;
+  --color-danger: #f85149;
+  --color-danger-dark: #da3633;
+  --color-error: #ff7b72;
+
+  /* ── Method colors ── */
+  --method-get: var(--color-success);
+  --method-post: var(--color-warning);
+  --method-put: var(--color-orange);
+  --method-delete: var(--color-danger);
+  --method-patch: var(--accent-secondary-light);
+
+  /* ── Method filter active backgrounds ── */
+  --method-get-bg: rgba(63, 185, 80, 0.15);
+  --method-post-bg: rgba(210, 153, 34, 0.15);
+  --method-put-bg: rgba(219, 109, 40, 0.15);
+  --method-delete-bg: rgba(248, 81, 73, 0.15);
+  --method-action-bg: rgba(163, 113, 247, 0.2);
+
+  /* ── Badge colors ── */
+  --badge-action-bg: rgba(163, 113, 247, 0.2);
+  --badge-action-color: #d2a8ff;
+  --badge-action-border: rgba(163, 113, 247, 0.4);
+  --badge-action-glow: rgba(163, 113, 247, 0.2);
+  --badge-mw-bg: rgba(0, 255, 65, 0.15);
+  --badge-mw-color: #00ff41;
+  --badge-mw-border: rgba(0, 255, 65, 0.3);
+  --badge-mw-glow: rgba(0, 255, 65, 0.15);
+  --badge-fetch-bg: rgba(88, 166, 255, 0.15);
+  --badge-fetch-color: #58a6ff;
+  --badge-fetch-border: rgba(88, 166, 255, 0.3);
+  --badge-fetch-glow: rgba(88, 166, 255, 0.15);
+
+  /* ── JSON / code syntax ── */
+  --json-key: #7ee787;
+  --json-string: #a5d6ff;
+  --json-number: #79c0ff;
+  --json-boolean: #ff7b72;
+  --json-null: #ff7b72;
+  --json-bracket: #8b949e;
+
+  /* ── Row states ── */
+  --row-hover: rgba(255, 255, 255, 0.04);
+  --row-even: transparent;
+  --row-selected: rgba(255, 255, 255, 0.15);
+  --row-selected-accent: var(--accent);
+  --row-selected-glow: inset 0 1px 0 rgba(74, 225, 104, 0.15), inset 0 -1px 0 rgba(74, 225, 104, 0.08), 0 0 12px rgba(74, 225, 104, 0.06);
+
+  /* ── Filter active ── */
+  --filter-active-bg: linear-gradient(135deg, rgba(0, 255, 65, 0.15), rgba(163, 113, 247, 0.1));
+
+  /* ── Gradients ── */
+  --gradient-timing: linear-gradient(60deg, rgba(74, 225, 104, 0.6), rgba(0, 255, 65, 0.5));
+
+  /* ── Shadows ── */
+  --shadow-focus: 0 0 0 2px rgba(0, 255, 65, 0.15);
+  --shadow-timing: 0 0 10px rgba(0, 255, 65, 0.3), 0 0 4px rgba(163, 113, 247, 0.2);
+  --shadow-thead: 0 1px 4px rgba(0, 0, 0, 0.3);
+
+  /* ── Interactive ── */
+  --clear-hover-bg: rgba(248, 81, 73, 0.1);
+  --clear-hover-border: rgba(248, 81, 73, 0.3);
+  --input-focus-bg: rgba(10, 10, 12, 0.95);
+
+  /* ── Scrollbar ── */
+  --scrollbar-thumb: var(--border-secondary);
+  --scrollbar-thumb-hover: var(--border-hover);
+
+  /* ── Radius ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* ── Fonts ── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+}

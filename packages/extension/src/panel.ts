@@ -1,4 +1,9 @@
 import renderjson from "renderjson";
+import "./themes/midnight.css";
+import "./themes/github-dark.css";
+import "./themes/catppuccin.css";
+import "./themes/nord.css";
+import "./themes/light.css";
 
 renderjson.set_show_to_level(1);
 renderjson.set_icons("▶ ", "▼ ");
